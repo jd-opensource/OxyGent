@@ -1,0 +1,142 @@
+
+.file-upload-area {
+    transition: all 0.3s;
+    position: relative;
+}
+
+
+/* hover 提示信息样式 */
+.file-tooltip {
+    text-align: left;
+    display: none;
+    position: absolute;
+    top: -40px;
+    left: -10px;
+    /*transform: translateX(-50%);*/
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.file-tooltip-title {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.file-tooltip-description {
+    display: block;
+    font-size: 12px;
+}
+
+.file-upload-area:hover .file-tooltip {
+    display: block;
+    opacity: 1;
+}
+
+.file-upload-area.highlight {
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+}
+
+.file-list-chat {
+    margin-top: 10px;
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: calc(100% - 15px);
+    max-height: 180px;
+    display: flex;
+    overflow-y: auto;
+}
+
+.file-list {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: calc(100% - 48px);
+    max-height: 180px;
+    display: flex;
+    overflow-y: auto;
+}
+
+.file-item:hover {
+    cursor: pointer;
+    transition: box-shadow .2s ease-in-out;
+}
+
+.file-item:hover .file-close {
+    display: block;
+    opacity: 1;
+}
+
+.file-close {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 0;
+}
+.file-item {
+    position: relative;
+    align-items: center;
+    display: flex;
+    height: 68px;
+    border-radius: 4px;
+    background: #F3F3F5;
+    padding: 14px;
+}
+
+.file-info {
+    display: block;
+    margin-left: 8px;
+    margin-right: 20px;
+}
+
+.file-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #000000;
+}
+
+.file-size {
+    color: #E0E0E0;
+}
+
+.file-progress {
+    width: 100%;
+    height: 5px;
+    background-color: #f0f0f0;
+    margin-top: 5px;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.file-progress-bar {
+    height: 100%;
+    background-color: #52c41a;
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.upload-status {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.status-success {
+    background-color: #f6ffed;
+    border: 1px solid #b7eb8f;
+    color: #52c41a;
+}
+
+.status-error {
+    background-color: #fff2f0;
+    border: 1px solid #ffccc7;
+    color: #f5222d;
+}

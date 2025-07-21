@@ -1,0 +1,1633 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- 强制不缓存的 meta 标签 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="shortcut icon" href="./image/group-favicon.png" type="image/x-icon">
+    <title>Multi-Agent</title>
+    <link rel="stylesheet" href="./css/style.css?time=2">
+    <link rel="stylesheet" href="./css/main.css?time=2"/>
+    <link rel="stylesheet" href="./css/tree.css?time=2"/>
+    <link rel="stylesheet" href="./css/cascader.css?time=2"/>
+    <link rel="stylesheet" href="./css/file.css?time=2"/>
+    <link rel="stylesheet" href="./css/agent-list.css?time=2"/>
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="./js/utils.js?time=2"></script>
+    <script src="js/marked.min.js?time=2"></script>
+    <script src="./js/agent_tree.js?time=2"></script>
+    <script src="./js/cascader.js?time=2"></script>
+    <script src="./js/upload.js?time=2"></script>
+    <script src="./js/message.js?time=2"></script>
+</head>
+<body>
+<div class="header">
+    <div class="header-left">
+        <img class="header-left-img" src="./image/group-favicon.png" alt="">
+        <!--        <div class="operate">-->
+        <!--            <button onclick="save_historys()">save</button>-->
+        <!--            <div class="nice-select">-->
+        <!--                <input id="customerId" type="text" oninput="searchList(this.value)"/>-->
+        <!--                <ul id="list"></ul>-->
+        <!--            </div>-->
+        <!--        </div>-->
+        <div class="cascader">
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
+            <div class="cascader-container">
+                <div class="cascader-input" id="cascaderInput">
+                    <span class="cascader-input-placeholder">File</span>
+                    <img class="arrow" src="image/group-down.svg"/>
+                </div>
+                <div class="cascader-dropdown" id="cascaderDropdown">
+                    <div class="cascader-menus"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="header_title_id" class="header-title"></div>
+    <div class="header-right">
+        <div class="control">
+            <button onclick="begin()">
+                <img src="./image/arrow-left-double.svg" alt=""/>
+            </button>
+            <button onclick="back()">
+                <img src="./image/arrow-left.svg" alt=""/>
+            </button>
+
+            <button data-status="play" id="play" onclick="play()">
+                <img src="./image/play.svg" alt=""/>
+            </button>
+
+            <button onclick="next()">
+                <img src="./image/arrow-right.svg" alt=""/>
+            </button>
+            <button onclick="end()">
+                <img src="./image/arrow-right-double.svg" alt=""/>
+            </button>
+            <div id="step"></div>
+        </div>
+        <!--        todo  中英文  主题-->
+        <!--                <div class="global-buttons">-->
+        <!--                    <button class="btn-theme">-->
+        <!--                        <img src="./image/global-language.svg" alt="">-->
+        <!--                    </button>-->
+        <!--                    <button class="btn-language">-->
+        <!--                        <img src="./image/global-theme.svg" alt="">-->
+        <!--                    </button>  -->
+        <!--                </div>-->
+    </div>
+</div>
+<div class="container">
+    <div class="center xMind">
+    </div>
+    <div class="left">
+        <div class="left_bottom">
+            <div class="chat-container">
+                <div id="chat_title">
+                    Playground
+                </div>
+                <div class="chat_toggle_group">
+                    <button id="message_group" onclick="openRight()">
+                        <img src="./image/group-vector-default.svg" alt=""/>
+                    </button>
+                </div>
+            </div>
+
+            <div id="chat_history">
+                <ul class="content" id="chatbox">
+                </ul>
+            </div>
+            <div id="chat_send">
+                <!-- <div class="file-list" id="fileList"><div class="file-item">
+                        <div class="file-icon">
+                            <img src="./image/video.svg" alt="">
+                        </div>
+                        <div class="file-info">
+                            <div class="file-name">Group-favicon.png</div>
+                            <div class="file-size">644 BytesKB</div>
+                        </div>
+                        <div class="file-close" data-id="Group-favicon.png">
+                            <img src="./image/group_close.svg" alt="#">
+                        </div>
+
+                    </div></div> -->
+                <div class="file-list" id="fileList"></div>
+                <!-- <div class="chat-agent-list">
+                    <div class="chat-agent-item">
+                        <div class="chat-agent-info">
+                            <div class="chat-agent-name"><span>@</span>master</div>
+                        </div>
+                        <div class="chat-agent-close" data-id="Group-favicon.png">
+                            <img src="./image/group_close.svg" alt="#">
+                        </div>
+                    </div>
+                </div> -->
+                <div class="chat-agent-list" id="chatAgentList"></div>
+
+                <div id="message_input_wrap">
+                    <!-- agentlist -->
+                    <div id="chat-at-list-container-id" class="chat-at-list-container">
+                        <ul id="chatAtListId" class="chat-at-list"></ul>
+                    </div>
+
+
+                    <input type="text" id="message_input" placeholder="Ask me anything here.">
+                </div>
+                <button class="file-upload-area" id="message_addtional">
+                    <input
+                            type="file"
+                            id="fileAddtional"
+                            multiple
+                            accept=".txt,.jpg,.jpeg,.png,.mp4"
+                            style="display: none;"
+                    >
+                    <img src="./image/group_addtion.svg" alt=""/>
+                    <span class="file-tooltip">
+                        <span class="file-tooltip-title"> Upload attachments </span>
+                        <span class="file-tooltip-description">Max 10, 10MB each. Images and videos are supported.</span>
+                    </span>
+                </button>
+                <button id="message_send" onclick="send_message()">
+                    <img src="./image/up_arrow.svg" alt=""/>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="right" id="rightId">
+        <div class="right-container">
+            <div id="agent_log">
+                <div class="agent-empty">
+                    <img class="empty-img" src="./image/empty.svg" alt="">
+                </div>
+            </div>
+                <button id="agent_log_close_id" onclick="closeRight()">
+                    <img src="./image/group_close.svg" alt=""/>
+                </button>
+        </div>
+
+    </div>
+</div>
+</body>
+<script>
+    var ws = null;
+    var from_trace_id = "";
+    var first_chat = "How may I support your request today?";
+
+    var last_tool_call_path = [];
+    var last_tool_call_name = "";
+    var llm_is_work = false;
+    var chats = [];
+    var plan_dict = {};
+    var historys = [];
+    var tool_calls = [];
+    var show_id = 0;
+    var agent_id_dict = {};
+    var agent_organization = {};
+
+    var master_agent_name = "master_agent";
+    var div_right = $("#agent_log");
+    var div_chat_history = $("#chat_history");
+    var div_chatbox = $("#chatbox");
+    var div_org = $(".center");
+    var interval_id = null;
+    var no_change_history = true;
+    var now_script_id = '';
+
+    var node_state = {};
+    var eventSource = null;
+    var _cascader = null
+
+    const agentImgMap = [
+        {bgColor: '#FEEAD4', color: '#7d4303', imgUrl: './image/agents/agent_0.png'},
+        {bgColor: '#E4FBCC', color: '#417609', imgUrl: './image/agents/agent_1.png'},
+        {bgColor: '#D3F8DF', color: '#116e30', imgUrl: './image/agents/agent_2.png'},
+        {bgColor: '#E0F2FE', color: '#044c7c', imgUrl: './image/agents/agent_3.png'},
+        {bgColor: '#E0EAFF', color: '#002980', imgUrl: './image/agents/agent_4.png'},
+        {bgColor: '#EFF1F5', color: '#313b4e', imgUrl: './image/agents/agent_5.png'},
+        {bgColor: '#FBE8FF', color: '#690080', imgUrl: './image/agents/agent_6.png'},
+        {bgColor: '#FBE7F6', color: '#6d1257', imgUrl: './image/agents/agent_7.png'},
+        {bgColor: '#FEF7C4', color: '#7d6e02', imgUrl: './image/agents/agent_8.png'},
+        {bgColor: '#E6F4D7', color: '#41641b', imgUrl: './image/agents/agent_9.png'},
+        {bgColor: '#D5F5F6', color: '#166669', imgUrl: './image/agents/agent_10.png'},
+        {bgColor: '#D2E9FF', color: '#004180', imgUrl: './image/agents/agent_11.png'},
+        {bgColor: '#D1DFFF', color: '#002780', imgUrl: './image/agents/agent_12.png'},
+        {bgColor: '#D5D9EB', color: '#293156', imgUrl: './image/agents/agent_13.png'},
+        {bgColor: '#EBE9FE', color: '#11067a', imgUrl: './image/agents/agent_14.png'},
+        {bgColor: '#FFE4E8', color: '#800013', imgUrl: './image/agents/agent_15.png'},
+    ];
+
+    // 聊天界面的文件上传信息
+    var filesToUpload = [];
+
+    var argentName = '';
+
+    (function () {
+    // 使用 sessionStorage 避免刷新死循环
+    if (!sessionStorage.getItem('page_refreshed')) {
+        sessionStorage.setItem('page_refreshed', '1');
+
+        /* 为当前 URL 加上时间戳参数，触发浏览器向服务器重新拉取最新资源 */
+        const url = new URL(location.href);
+        url.searchParams.set('_', Date.now());
+        location.replace(url.toString());          // 强制重新加载一次
+    }
+    })();
+
+    function sha256(ascii) {
+        function rightRotate(v, amount) {
+            return (v >>> amount) | (v << (32 - amount));
+        }
+
+        var mathPow = Math.pow, max = Math.max, imul = Math.imul;
+        var result = '', i, j;
+        var asciiBitLength = ascii.length * 8;
+        var hash = [], k = [];
+        var primeCounter = 0;
+
+        function isPrime(n) {
+            if (n < 2) return false;
+            for (var i = 2; i * i <= n; i++) if (n % i === 0) return false;
+            return true;
+        }
+
+        for (var candidate = 2; primeCounter < 64; candidate++) {
+            if (isPrime(candidate)) {
+                hash[primeCounter] = (mathPow(candidate, .5) * 4294967296) | 0;
+                k[primeCounter++] = (mathPow(candidate, 1 / 3) * 4294967296) | 0;
+            }
+        }
+        ascii += '\x80'
+        while (ascii.length % 64 - 56) ascii += '\x00'
+        for (i = 0; i < ascii.length; i++) asciiBitLength += ascii.charCodeAt(i) << ((i % 4) * 8);
+        var w = [];
+        for (i = 0; i < ascii.length;) {
+            var j = 0;
+            for (; j < 16; j++) w[j] = (ascii.charCodeAt(i++) << 24) | (ascii.charCodeAt(i++) << 16) | (ascii.charCodeAt(i++) << 8) | (ascii.charCodeAt(i++));
+            for (; j < 64; j++) w[j] = (rightRotate(w[j - 2], 17) ^ rightRotate(w[j - 2], 19) ^ (w[j - 2] >>> 10) + w[j - 7] + rightRotate(w[j - 15], 7) ^ rightRotate(w[j - 15], 18) ^ (w[j - 15] >>> 3) + w[j - 16]) | 0;
+            var a = hash[0], b = hash[1], c = hash[2], d = hash[3], e = hash[4], f = hash[5], g = hash[6], h = hash[7];
+            for (j = 0; j < 64; j++) {
+                var t1 = h + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + ((e & f) ^ ((~e) & g)) + k[j] + w[j];
+                var t2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + ((a & b) ^ (a & c) ^ (b & c));
+                h = g;
+                g = f;
+                f = e;
+                e = (d + t1) | 0;
+                d = c;
+                c = b;
+                b = a;
+                a = (t1 + t2) | 0;
+            }
+            hash[0] = (hash[0] + a) | 0;
+            hash[1] = (hash[1] + b) | 0;
+            hash[2] = (hash[2] + c) | 0;
+            hash[3] = (hash[3] + d) | 0;
+            hash[4] = (hash[4] + e) | 0;
+            hash[5] = (hash[5] + f) | 0;
+            hash[6] = (hash[6] + g) | 0;
+            hash[7] = (hash[7] + h) | 0;
+        }
+        for (i = 0; i < hash.length; i++) for (j = 3; j + 1; j--) {
+            var b = (hash[i] >> (j * 8)) & 255;
+            result += ((b >> 4).toString(16)) + ((b & 15).toString(16));
+        }
+        return result;
+    }
+
+    function encodeList(list, length = 16) {
+        const str = JSON.stringify(list);
+        const hash = sha256(str);
+        // console.log('encodeList', list, str, hash.slice(0, length));
+        return hash.slice(0, length);
+    }
+
+    const id_to_color = {
+        0: "#54bce8",
+        1: "#e854bb",
+        2: "#bbe854",
+        3: "#e88054",
+        4: "#54e8ca",
+        5: "#8054e8",
+        6: "#5471e8",
+        7: "#e85471",
+        8: "#71e854",
+        9: "#ca54e8",
+        10: "#e8ca54",
+        11: "#54e880",
+    };
+
+    $(document).ready(function () {
+        $.ajax({
+            type: "GET",
+            url: "../get_organization",
+            success: function (response) {
+                response = response.data;
+                // console.log('response', response);
+                agent_id_dict = response.id_dict;
+                agent_organization = response.organization;
+                master_agent_name = response.organization.name;
+                init_chat_box();
+                init_organization();
+                renderChatAtAgentList();
+            }
+        })
+        $.ajax({
+            type: "GET",
+            url: "../get_first_query",
+            success: function (response) {
+                // console.log('first_query', response);
+                $("#message_input").val(response.data.first_query);
+                if (response.data.first_query) {
+                    $("#message_send").addClass('message_send_active'); // 有值时背景色为蓝色
+                }
+
+            }
+        })
+        $("#message_input").keydown(function (event) {
+            if (event.keyCode === 13) {
+                send_message();
+            }
+        });
+
+        $('#message_input').on('input', function () {
+            const val = $(this).val();
+            if (val) {
+                $("#message_send").addClass('message_send_active'); // 有值时背景色为蓝色
+                if (val.indexOf('@') > -1) {
+                    // console.log('@val', val)
+                    // 把当前的输入@删除保留其他的输入项，只删除@这个字符
+                    const inputVal = val.replace('@', '');
+                    $('#message_input').val(inputVal);
+
+                    var $element = $('#message_input'); //
+                    var distanceFromBottom = $(window).height() - ($element.offset().top + $element.outerHeight());
+                    var distanceFromLeft = $element.offset().left;
+                    const marginLeftValue = getTextWidth(inputVal);
+                    // 显示chat list
+                    $('#chat-at-list-container-id').css({
+                        bottom: (distanceFromBottom + 70) + 'px',
+                        left: (distanceFromLeft + marginLeftValue) + 'px',
+                    });
+                    $('#chat-at-list-container-id').show();
+
+                }
+            } else {
+                if($("#message_send").hasClass('message_send_active')) {
+                    $("#message_send").removeClass('message_send_active'); // 无值时背景色为白色
+                }
+            }
+        });
+
+
+        // $(".nice-select").click(function (e) {
+        //     $(this).find("ul").show();
+        //     e.stopPropagation();
+        // });
+
+        // $('#list').delegate('li', 'mouseover mouseout', function (e) {
+        //     $(this).toggleClass("on");
+        //     e.stopPropagation();
+        // });
+
+        // $('#list').delegate('li', 'click', function (e) {
+        //     var val = $(this).text();
+        //     $(".nice-select").find("input").val(val);
+        //     $(".nice-select").find("ul").hide();
+        //     e.stopPropagation();
+        //     load_historys(val);
+        // });
+
+        // $(document).click(function () {
+        //     $(".nice-select").find("ul").hide();
+        // });
+
+        list_historys();
+        renderHeaderTitle()
+    });
+
+    function renderHeaderTitle(id) {
+        // 如果为空生成一个
+        if (!id) {
+            now_script_id = generateScriptId();
+        }
+        $("#header_title_id").text(`${now_script_id}.json`);
+    }
+
+    function add_tool_call(arr) {
+        tool_calls.push([...arr]); // 存入新数组，深拷贝
+    }
+
+    // 删除某个数组（根据数组内容删除）
+    function remove_tool_call(arr) {
+        // 找到和arr内容完全一样的数组的索引
+        const index = tool_calls.findIndex(item =>
+            item.length === arr.length && item.every((v, i) => v === arr[i])
+        );
+        if (index !== -1) {
+            tool_calls.splice(index, 1);
+            return true; // 删除成功
+        }
+        return false; // 没找到
+    }
+
+    // 查看当前所有数组
+    function get_all_tool_calls() {
+        return tool_calls.map(arr => [...arr]); // 返回拷贝，防止外部修改
+    }
+
+    function getNodeColors(tool_calls) {
+        const nodeColors = {};
+        const childrenSet = new Set();
+
+        for (const path of tool_calls) {
+            let parent = [];
+            for (let i = 0; i < path.length; i++) {
+                const node = path[i];
+                const current = parent.concat([node]);
+                const nodeKey = encodeList(current);
+
+                if (!(nodeKey in nodeColors)) {
+                    nodeColors[nodeKey] = 'red'; // 默认叶子
+                }
+                if (parent.length > 0) {
+                    childrenSet.add(encodeList(parent));
+                }
+                parent = current;
+            }
+        }
+
+        for (const key of childrenSet) {
+            nodeColors[key] = 'yellow';
+        }
+        return nodeColors;
+    }
+
+    function diffNodeColors(node_state, new_node_state) {
+        const result = {};
+        // 所有涉及到的节点
+        const allNodes = new Set([
+            ...Object.keys(node_state),
+            ...Object.keys(new_node_state)
+        ]);
+
+        allNodes.forEach(node => {
+            const oldColor = node_state[node];
+            const newColor = new_node_state[node];
+
+            if (newColor === undefined) {
+                // 新状态没有这个节点，且之前是红或黄，需要变成白色
+                if (oldColor === 'red' || oldColor === 'yellow') {
+                    result[node] = 'white';
+                }
+            } else if (oldColor !== newColor) {
+                // 颜色发生变化
+                result[node] = newColor;
+            }
+            // 颜色相同，不输出
+        });
+
+        return result;
+    }
+
+    function push_plan(caller, type, content, node_id = '', callee) {
+        if (!plan_dict.hasOwnProperty(caller)) {
+            plan_dict[caller] = {
+                "agent_name": caller,
+                "job_desc": "",
+                "intention": "",
+                "plannings": [],
+                "answer": ""
+            };
+        }
+        if (type === "observation" || type === "plan") {
+            plan_dict[caller]["plannings"].push({
+                "callee": callee,
+                "type": type,
+                "content": content,
+                "node_id": node_id
+            });
+        } else {
+            plan_dict[caller][type] = content;
+        }
+        // console.log(plan_dict);
+    }
+
+    function message_handler(message) {
+        // console.log(message)
+        if (message.startsWith("服务器")) {
+            console.log(message);
+            return;
+        }
+        let jm = JSON.parse(message);
+        console.log(historys.length + 1, JSON.parse(JSON.stringify(jm)));
+
+        var history = {};
+        if (historys[historys.length - 1] !== undefined) {
+            history = JSON.parse(JSON.stringify(historys[historys.length - 1]));
+        }
+
+        if (jm["type"] == "tool_call") {
+            if (jm["content"]["callee_category"] === 'agent') {
+                push_plan(jm["content"]["callee"], "job_desc", jm["content"].arguments.query, jm["content"].node_id);
+                history["agent_log"] = JSON.parse(JSON.stringify(plan_dict[jm["content"]["callee"]]));
+            }
+
+            if (jm["content"]["callee_category"] === 'agent' || jm["content"]["callee_category"] === 'tool') {
+                add_tool_call(jm["content"]["call_stack"].slice(1));
+                history["tool_call"] = getNodeColors(get_all_tool_calls());
+            }
+
+            if (jm["content"]["caller_category"] === 'agent' && jm["content"]["callee_category"] === 'agent') {
+                var msg = {
+                    "role": jm["content"].caller,
+                    "content": jm["content"].arguments.query,
+                    "at": jm["content"].callee
+                };
+                chats.push(msg);
+                history["answer"] = JSON.parse(JSON.stringify(chats));
+            } else if (jm["content"]["caller_category"] === 'agent' && jm["content"]["callee_category"] === 'llm') {
+                // 开始调用llm
+                return;
+            }
+        }
+
+        if (jm["type"] == "observation") {
+            if (jm["content"]["caller"] === 'user') {
+                // answer
+                from_trace_id = jm["content"]["current_trace_id"];
+                var markdownInput = jm["content"]["output"];
+                if (typeof markdownInput !== 'string') {
+                    markdownInput = JSON.stringify(markdownInput, null, 2);
+                }
+                var msg = {"role": jm["content"].callee, "content": markdownInput};
+                chats.push(msg);
+                history["answer"] = JSON.parse(JSON.stringify(chats));
+                llm_is_work = false;
+                // $("#message_send").text("Send");
+                // 重置react_memory
+                plan_dict = {};
+            } else if (jm["content"]["caller_category"] === 'agent' && jm["content"]["callee_category"] === 'agent') {
+                push_plan(jm["content"]["caller"], "observation", jm["content"].output, jm["content"].node_id, jm["content"]["callee"]);
+                history["agent_log"] = JSON.parse(JSON.stringify(plan_dict[jm["content"]["caller"]]));
+
+                var msg = {
+                    "role": jm["content"].callee,
+                    "content": jm["content"].output,
+                    "at": jm["content"].caller
+                };
+                chats.push(msg);
+                history["answer"] = JSON.parse(JSON.stringify(chats));
+            } else if (jm["content"]["caller_category"] === 'agent' && jm["content"]["callee_category"] === 'llm') {
+                push_plan(jm["content"]["caller"], "plan", jm["content"].output, jm["content"].node_id, jm["content"]["callee"]);
+                history["agent_log"] = JSON.parse(JSON.stringify(plan_dict[jm["content"]["caller"]]));
+            } else if (jm["content"]["caller_category"] === 'agent' && ['tool'].includes(jm["content"]["callee_category"])) {
+                push_plan(jm["content"]["caller"], "observation", jm["content"].output, jm["content"].node_id, jm["content"]["callee"]);
+                history["agent_log"] = JSON.parse(JSON.stringify(plan_dict[jm["content"]["caller"]]));
+            }
+
+            if (jm["content"]["callee_category"] === 'agent' || ['tool'].includes(jm["content"]["callee_category"])) {
+                remove_tool_call(jm["content"]["call_stack"].slice(1));
+                history["tool_call"] = getNodeColors(get_all_tool_calls());
+            }
+        }
+
+        show_by_history(history);
+        historys.push(history);
+        show_id += 1;
+        show_step();
+    }
+
+    function init_ws() {
+        ws.onopen = function () {
+            ws.send("start");
+        };
+        ws.onmessage = function (event) {
+            message_handler(event.data);
+        };
+        ws.onerror = function (event) {
+            console.log(event);
+            ws.close()
+        };
+        ws.onclose = function () {
+            console.log('close');
+        };
+
+    }
+
+    function init_organization() {
+        agent_id_dict = historys[0].agent_id_dict;
+        var agent_org = historys[0].agent_organization;
+
+        div_org.empty();
+        div_org.HOkrTree({
+            data: [agent_org],
+            itemTemplate: function (data) {
+                const isAgent = data.type === 'agent' || data.type === 'flow';
+                const isRoot = data?.path?.length === 1;
+                const idx = agent_id_dict[data.name] % 16;
+
+                const typeMap = {
+                    tool: './image/org_tool.svg',
+                    model: './image/org_model.svg',
+                    flow: './image/org_flow.svg',
+                };
+                const id = encodeList(data.path);
+
+                return `<div
+                        id='${id}'
+                        class='item-template ${isRoot ? '' : 'pre-connector'} ${data?.is_remote ? 'remote' : ''}'
+                    >
+                        <span class='item-template-img ${isAgent ? 'agent' : ''}'>
+                        ${isAgent
+                    ? `<span
+                                    style='${isAgent ? `background-color: ${agentImgMap[idx]?.bgColor}` : ''}'
+                                >
+                                    <img src='${agentImgMap[idx]?.imgUrl}' />
+                                </span>`
+                    : `<img src='${typeMap[data.type]}' />`
+                }
+                        </span>
+                        <span class='item-template-text'>
+                            ${data.name}
+                        </span>
+                        ${data?.children?.length
+                    ? '<div class="expandIcon">-</div>'
+                    : ''
+                }
+                    </div>`;
+            },
+            tagTemplate: function (data) {
+                return ['<div class="item-template" style="background:#fff;border-radius:50px;width:160px;border:solid 1px #ffc107;overflow: hidden;box-shadow: 0px 0px 10px #eee;box-sizing:border-box;"><img style="height:40px;width:40px;border-radius:50%;vertical-align:middle;margin-left:1px;" src="t.png" /><span style="display:inline-block;vertical-align:middle;font-size:12px;margin-left:10px;">', data.name, '</span></div>'].join(" ")
+            }
+        });
+    }
+
+    function init_chat_box() {
+        historys = [];
+        chats = [];
+        var msg = {"role": master_agent_name, "content": first_chat};
+        chats.push(msg);
+        historys.push({
+            "agent_id_dict": agent_id_dict,
+            "agent_organization": agent_organization,
+            "answer": JSON.parse(JSON.stringify(chats)),
+            "agent_log": {},
+            "tool_call": []
+        });
+        begin();
+    }
+
+    function send_msg_to_chatbox(msg, name = "user", at = "", scroll_top = true) {
+        var li = $("<li>");
+        if (name === "user") {
+            li.addClass("me");
+            li.append(`
+                    <span class="user-img">
+                        <img src="./image/user.svg" />
+                    </span>
+                `);
+        } else {
+            li_class = at === "" ? "master" : "other";
+            li.addClass(li_class);
+            // li.append($("<img>").attr("src", "./image/agent_" + agent_id_dict[name] + ".png"));
+
+            const idx = agent_id_dict[name] % 16;
+
+            li.append(
+                $("<img>")
+                    .attr("src", agentImgMap[idx]?.imgUrl)
+                    .css("background-color", agentImgMap[idx]?.bgColor)
+            );
+
+            li.append($("<p>").text(name));
+        }
+        if (at === "") {
+            if (argentName && name === "user") {
+                var argentNameHtml = `<i style="color: #155EEF;font-style: normal">@${argentName}</i>`
+                li.append($('<span class="1">').html(argentNameHtml + " " + msg));
+                argentName = '';
+                renderCharlist();
+            } else {
+                li.append($('<span class="1">').text(msg));
+            }
+        } else {
+            li.append($('<span>').append($("<section>").css("color", agentImgMap[agent_id_dict[at]]?.color).text("@" + at)).append(msg));
+        }
+
+        if (name === "user" && filesToUpload.length > 0) {
+            var fileList = document.createElement('div');
+            fileList.className = 'file-list-chat';
+            filesToUpload.forEach(_file => {
+                var fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                fileItem.innerHTML = `
+                            <div class="file-icon">
+                                <img src="./image/video.svg" alt=""></img>
+                            </div>
+                            <div class="file-info">
+                                <div class="file-name">${_file.name}</div>
+                                <div class="file-size">${_file.size}KB</div>
+                            </div>`
+                fileList.append(fileItem);
+            })
+            li.append(fileList);
+            // 清空输入框
+            fileReset()
+        }
+        div_chatbox.append(li);
+        if (scroll_top) {
+            scroll_top_div_chat_history();
+        }
+    }
+
+    function scroll_top_div_chat_history() {
+        div_chat_history.stop();
+        if (div_chat_history[0]) {
+            div_chat_history.animate({
+                scrollTop: div_chat_history[0].scrollHeight
+            }, 500);
+        }
+    }
+
+    function send_message() {
+        if (llm_is_work == false) {
+            if (now_script_id !== "") {
+                // from_trace_id = "";   // ws.send("reset");
+                // init_chat_box();
+                // init_organization();
+                // $(".nice-select").find("input").val("");
+                // now_script_id = "";
+            }
+            end();
+            var input = document.getElementById('message_input');
+            var message = input.value;
+
+            if (!message) {
+                return
+            }
+
+            var payload = {
+                "from_trace_id": from_trace_id,
+                "query": message,
+                "shared_data": {"extra": "extra argument"},
+            }
+
+            if (filesToUpload.length) {
+                payload.attachments = filesToUpload.map(({serverName}) => serverName);
+            }
+
+            if (argentName) {
+                payload.callee = argentName;
+            }
+
+            // ToDo 接口协议修改
+            // if (message.includes("图")) {
+            //     payload["attachments"] = ["20250705122650_20250626090420425_副本.png"]
+            // }
+            eventSource = new EventSource('../sse/chat?payload=' + encodeURIComponent(JSON.stringify(payload)));
+            // eventSource = new EventSource('../sse/chat?query='+message+'&from_trace_id='+from_trace_id);
+            // let messageQueue = [];
+            // let processing = false;
+            // const eventSource = new EventSource('http://127.0.0.1:8080/sse/chat');
+            // let queue = [];
+            eventSource.onmessage = (event) => {
+                // console.log(event.data);
+                message_handler(event.data);
+                // queue.push(event.data);
+            };
+            // setInterval(() => {
+            //     if (queue.length > 0) {
+            //         message_handler(queue.shift());
+            //     }
+            // }, 1000);
+            eventSource.onerror = (e) => {
+                console.log('SSE 连接发生错误', e);
+                $("#message_send").html(`
+                    <img src="./image/up_arrow.svg" alt="" />
+                `);
+                eventSource.close();
+            };
+            eventSource.addEventListener("close", (event) => {
+                console.log("任务完成，关闭SSE连接:", event.data);
+                $("#message_send").html(`
+                    <img src="./image/up_arrow.svg" alt="" />
+                `);
+                eventSource.close(); // 主动关闭连接
+            });
+            // ws.send(JSON.stringify(payload));  // 发送消息
+            input.value = '';
+            var msg = {"role": "user", "content": message};
+            chats.push(msg);
+            let history = JSON.parse(JSON.stringify(historys[historys.length - 1]));
+            history["answer"] = JSON.parse(JSON.stringify(chats));
+            historys.push(history);
+            show_id += 1;
+            show_step();
+            send_msg_to_chatbox(message);
+            llm_is_work = true;
+            $("#message_send").html(`
+                    <img src="./image/stop-circle.svg" alt="" />
+                `);
+        } else {
+            eventSource.close();
+            llm_is_work = false;
+            plan_dict = {};
+            $("#message_send").html(`
+                <img src="./image/up_arrow.svg" alt="" />
+            `);
+        }
+    }
+
+    function show(jm) {
+        // 渲染
+        if (jm["type"] == "answer" || jm["type"] == "agent_call") {
+            var from_size = div_chatbox.children().length;
+            var to_size = jm["content"].length;
+            if (no_change_history && from_size === to_size) {
+                return;
+            } else if (no_change_history && from_size > to_size) {
+                // remove
+                div_chatbox.children().slice(to_size - from_size).remove();
+                return;
+            } else if (no_change_history && from_size < to_size) {
+                // add
+                jm["content"].slice(from_size - to_size).forEach(chat => {
+                    send_msg_to_chatbox(chat.content, chat.role, chat.at, false);
+                });
+                scroll_top_div_chat_history();
+                return;
+            }
+            no_change_history = true;
+            div_chatbox.empty();
+            jm["content"].forEach(chat => {
+                send_msg_to_chatbox(chat.content, chat.role, chat.at, false);
+            });
+            scroll_top_div_chat_history();
+        }
+        if (jm["type"] == "agent_log") {
+            if (Object.keys(jm.content)?.length) {
+                div_right.empty();
+            }
+            agent_log = jm["content"];
+            console.log("agent_log", agent_log);
+            if (agent_log.hasOwnProperty("agent_name") && agent_log["agent_name"].trim() !== "") {
+                var div_agent_name = $("<div>").addClass("agent_name");
+
+                const idx = agent_id_dict[agent_log["agent_name"]] % 16;
+                const cur = agentImgMap[idx];
+                // console.log('cur', cur)
+
+                // div_agent_name.append('<img src="./image/agent_' + agent_id_dict[agent_log["agent_name"]] + '.png" class="agent_log_img">');
+                div_agent_name.append(
+                    $("<img>")
+                        .attr("src", cur?.imgUrl)
+                        .addClass('agent_log_img')
+                        .css("background-color", cur?.bgColor)
+                );
+                div_agent_name.append(agent_log["agent_name"]);
+                div_right.append(div_agent_name);
+            }
+            if (agent_log.hasOwnProperty("job_desc") && agent_log["job_desc"].trim() !== "") {
+                // div_right.append($("<h3>").text("Job Description").css("color", "red"));
+                div_right.append($("<div class='job_desc'>").text(agent_log["job_desc"]));
+                div_right.append($("<div class='job_desc_interval'>"));
+            }
+            if (agent_log.hasOwnProperty("intention") && Object.keys(agent_log["intention"]).length !== 0) {
+                div_right.append($("<h3>").text("Intention Understanding").css("color", "red"));
+                var a_tag = $("<a>").attr("href", "./node.html?id=" + agent_log["intention"].node_id).attr("target", "_blank").css("text-decoration", "none").css("color", "black");
+                var temp_div = $("<div>").addClass("planning").text(agent_log["intention"]["content"]);
+                a_tag.append(temp_div);
+                div_right.append(a_tag);
+            }
+            if (agent_log.hasOwnProperty("plannings") && agent_log["plannings"].length > 0) {
+                for (var i = 0; i < agent_log["plannings"].length; i++) {
+                    var markdownInput = agent_log["plannings"][i].content;
+                    if (typeof markdownInput !== 'string') {
+                        markdownInput = JSON.stringify(markdownInput, null, 2);
+                    }
+
+                    // if (agent_log["plannings"][i].type == 'observation') {
+                    //     div_right
+                    //         .append($("<div class='observation-head'>")
+                    //         .text(agent_log["plannings"][i].callee));
+
+                    //     div_right.append($("<div class='observation-output-head'>").text('Output'));
+                    //     var temp_div = $("<div>").addClass("observation");
+                    //     temp_div.html(marked.marked(markdownInput));
+                    //     div_right.append(temp_div);
+                    // } else {
+                        if (agent_log["plannings"][i].type == 'observation') {
+                            div_right
+                                .append($("<div class='observation-head'>")
+                                .text(agent_log["plannings"][i].callee));
+                        } else {
+                            div_right
+                                .append($("<div class='plannings-head'>")
+                                .text(agent_log["plannings"][i].callee));
+                        }
+                            
+                        div_right
+                            .append($("<div class='plannings-output-head'>")
+                            .text('Output'));
+
+                        var a_tag = $("<a class='plannings-link'>")
+                            .attr("href", "./node.html?id=" + agent_log["plannings"][i].node_id).attr("target", "_blank")
+                            .css("text-decoration", "none")
+                            .css("color", "black");
+                        var temp_div = $("<div>").addClass("planning");
+                        temp_div.html(marked.marked(markdownInput));
+                        a_tag.append(temp_div);
+                        div_right.append(a_tag);
+                    // }
+                }
+            }
+
+            if (div_right[0]) {
+                div_right.animate({
+                    scrollTop: div_right[0].scrollHeight
+                }, 500);
+            }
+        }
+        if (jm["type"] == "tool_call") {
+            new_node_state = jm["content"];
+            var diff_color = diffNodeColors(node_state, new_node_state);
+            Object.entries(diff_color).forEach(([key, value]) => {
+                if (value === 'red') { // 当前选中
+                    $("#" + key).removeClass('pre-select');
+                    $("#" + key).addClass('select');
+
+                    focus_agent(key);
+                } else if (value === 'yellow') { // 上一个选中
+                    $("#" + key).removeClass('select');
+                    $("#" + key).addClass('pre-select');
+
+                } else if (value === 'white') { // 恢复初始态
+                    $("#" + key).removeClass('select');
+                    $("#" + key).removeClass('pre-select');
+                } else {
+
+                }
+            });
+            node_state = JSON.parse(JSON.stringify(new_node_state));
+        }
+    }
+
+    // 右侧面板收起展开逻辑
+    $("#agent_log").on('click', function (e) {
+        let current = $(e.target);
+
+        let aimDom = null;
+        while (aimDom === null && current.attr('id') !== 'agent_log') {
+            if (current.hasClass('plannings-output-head') || current.hasClass('observation-output-head')) {
+                aimDom = current;
+            } else {
+                current = current.parent();
+            }
+        }
+
+        if (aimDom.hasClass("collapse")) {
+            aimDom.removeClass("collapse");
+            aimDom.next().css({
+                display: "block",
+            })
+        } else {
+            aimDom.addClass('collapse');
+            aimDom.next().css({
+                display: "none",
+            })
+        }
+    });
+
+    function show_by_history(history) {
+        show({"type": "answer", "content": history["answer"]});
+        show({"type": "agent_log", "content": history["agent_log"]});
+        show({"type": "tool_call", "content": history["tool_call"]});
+    }
+
+    function begin() {
+        show_id = 0;
+        show_step();
+        show_by_history(historys[show_id]);
+    }
+
+    function back() {
+        if (show_id > 0) {
+            show_id -= 1;
+            show_step();
+            show_by_history(historys[show_id]);
+        }
+    }
+
+    function play() {
+        let status = $("#play")[0].dataset.status;
+
+        if (status == "play") {
+            if (show_id < historys.length - 1) {
+                $("#play").html(`
+                        <img src="./image/pause.svg" alt="" />
+                    `);
+                $("#play")[0].setAttribute('data-status', 'pause');
+
+                interval_id = setInterval(function () {
+                    if (show_id < historys.length - 1) {
+                        show_id += 1;
+                        show_step();
+                        show_by_history(historys[show_id]);
+                    } else {
+                        clearInterval(interval_id);
+                        $("#play").html(`
+                                <img src="./image/play.svg" alt="" />
+                            `);
+                        $("#play")[0].setAttribute('data-status', 'play');
+                    }
+                }, 500);
+            }
+        } else {
+            clearInterval(interval_id);
+            $("#play").html(`
+                    <img src="./image/play.svg" alt="" />
+                `);
+            $("#play")[0].setAttribute('data-status', 'play');
+        }
+    }
+
+    function next() {
+        if (show_id < historys.length - 1) {
+            show_id += 1;
+            show_step();
+            show_by_history(historys[show_id]);
+        }
+    }
+
+    function end() {
+        show_id = historys.length - 1;
+        show_step();
+        show_by_history(historys[show_id]);
+    }
+
+    window.onbeforeunload = function () {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+    };
+
+    function focus_agent(eid) {
+        var target_div = $("#" + eid);
+        var window_div = div_org;
+
+        // 1. 计算target_div相对于window_div的坐标
+        var td_offset = target_div.offset() || {};
+        var wd_offset = window_div.offset() || {};
+
+        var td = {
+            x: td_offset.left - wd_offset.left + window_div.scrollLeft(),
+            y: td_offset.top - wd_offset.top + window_div.scrollTop(),
+            w: target_div.outerWidth(),
+            h: target_div.outerHeight()
+        };
+        var wd = {
+            l: window_div.scrollLeft(),
+            t: window_div.scrollTop(),
+            w: window_div.width(),
+            h: window_div.height()
+        };
+
+        // 2. 判断是否在可视区域
+        if (
+            td.y >= wd.t &&
+            td.y + td.h <= wd.t + wd.h &&
+            td.x >= wd.l &&
+            td.x + td.w <= wd.l + wd.w
+        ) {
+            return;
+        }
+
+        // 3. 计算要滚动到的中心
+        var scrollTop = Math.max(0, td.y + td.h / 2 - wd.h / 2);
+        var scrollLeft = Math.max(0, td.x + td.w / 2 - wd.w / 2);
+
+        window_div.animate({scrollTop: scrollTop, scrollLeft: scrollLeft}, 200);
+    }
+
+    function click_to_next() {
+        ws.send("next");
+        console.log('next');
+    }
+
+    function debug() {
+        var window_div = div_org;
+        var wd = {
+            'l': window_div.scrollLeft(),
+            't': window_div.scrollTop(),
+            'w': window_div.width(),
+            'h': window_div.height()
+        }
+        console.log(wd);
+    }
+
+    function save_historys() {
+        $.ajax({
+            type: "POST",
+            url: "../save_script",
+            data: JSON.stringify({
+                contents: historys,
+                name: now_script_id.replace('.json', '')
+            }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (response) {
+                MessageSDK.show('success!')
+                list_historys();
+                // $(".nice-select").find("input").val(response.data.script_id);
+            }
+        })
+    }
+
+    function list_historys() {
+        $.ajax({
+            type: "GET",
+            url: "../list_script",
+            success: function (response) {
+                response = response.data.scripts;
+                handleFileCascader(response)
+                // $("#list").empty();
+                // response.forEach(element => {
+                //     $("#list").append($("<li>").text(element));
+                // });
+            }
+        })
+    }
+
+    function load_historys(script_id) {
+        $.ajax({
+            type: "GET",
+            url: "../load_script/",
+            data: {
+                item_id: script_id
+            },
+            success: function (response) {
+                historys = response.data.contents
+                clearInterval(interval_id);
+
+                $("#play").html(`
+                        <img src="./image/play.svg" alt="" />
+                    `);
+                $("#play")[0].setAttribute('data-status', 'play');
+
+                init_organization();
+                begin();
+                no_change_history = false;
+                now_script_id = script_id;
+                renderHeaderTitle(now_script_id)
+                // 强制刷新页面
+                $("#message_input").val("");
+                $("#message_input").attr("placeholder", "Click here to create a new reproduce script and start a new conversation.");
+                $("#chat_send").on('click', function () {
+                    window.location.reload();
+                });
+                $("#message_send").prop("disabled", true);
+                $("#message_addtional").prop("disabled", true);
+
+
+            }
+        })
+    }
+
+    function searchList(strValue) {
+        var count = 0;
+        if (strValue != "") {
+            $(".nice-select ul li").each(function (i) {
+                var contentValue = $(this).text();
+                if (contentValue.toLowerCase().indexOf(strValue.toLowerCase()) < 0) {
+                    $(this).hide();
+                    count++;
+                } else {
+                    $(this).show();
+                }
+                if (count == (i + 1)) {
+                    $(".nice-select").find("ul").hide();
+                } else {
+                    $(".nice-select").find("ul").show();
+                }
+            });
+        } else {
+            $(".nice-select ul li").each(function (i) {
+                $(this).show();
+            });
+        }
+    }
+
+    function show_step() {
+        $("#step").text((show_id + 1) + " / " + historys.length);
+    }
+
+    // 关闭最右侧对话框
+    function closeRight() {
+        $('#rightId').css('display', 'none');
+        $('#message_group').html('<img src="./image/group-vector-active.svg" alt=""/>')
+    }
+
+    function openRight() {
+        if ($('#rightId').css('display') == 'none') {
+            $('#message_group').html('<img src="./image/group-vector-default.svg" alt=""/>')
+            $('#rightId').css('display', 'block');    
+        }
+    }
+
+
+    var _cascaderOptions = [
+        {
+            id: 'New',
+            value: 'New',
+            label: 'New',
+            image: './image/group_add.svg',
+        },
+        {
+            id: 'Import',
+            value: 'Import',
+            label: 'Import',
+            image: './image/group_open.svg',
+        },
+        {
+            id: 'Load',
+            value: 'Load',
+            label: 'Load',
+            image: './image/group_recent.svg',
+        },
+        {
+            id: 'Save',
+            value: 'Save',
+            label: 'Save',
+            image: './image/group_save.svg',
+        },
+        {
+            id: 'Export',
+            value: 'Export',
+            label: 'Export',
+            image: './image/group_export.svg',
+        }
+    ];
+
+    var _cascader = new Cascader({
+            el: '#cascaderInput',
+            dropdown: '#cascaderDropdown',
+            options: _cascaderOptions,
+            onChange: function (selectedValues, selectedOptions) {
+                // console.log('Selected:', selectedValues, selectedOptions);
+                if (!selectedValues.length) {
+                    return false;
+                }
+
+                if (selectedValues[0] === 'New') {
+                    // 清空选项
+                    historys = [];
+                    now_script_id = '';
+                    window.location.reload();
+                }
+
+                if (selectedValues[0] === 'Import') {
+                    document.getElementById('fileInput').click();
+                }
+
+                if (selectedValues[0] === 'Export') {
+                    if (!historys.length) {
+                        return
+                    }
+                    var jsonData = JSON.stringify(historys, null, 2);
+                    // 创建下载链接
+                    var blob = new Blob([jsonData], {type: 'application/json'});
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = now_script_id ;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }
+
+                if (selectedValues[0] === 'Save') {
+                    //保存内里
+                    save_historys()
+                    _cascader = null;
+                }
+
+                if (selectedValues[0] === 'Load') {
+                    //  加载具体的记录
+                    const recentId = selectedValues[1];
+                    // console.log(recentId);
+                    if (recentId) {
+                        load_historys(recentId);
+                    }
+                }
+            }
+        });
+        // 文件输入事件
+        document.getElementById('fileInput').addEventListener('change', function (e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    var _options = JSON.parse(e.target.result);
+                    if (Array.isArray(_options)) {
+                        historys = _options;
+                        clearInterval(interval_id);
+
+                        $("#play").html(`
+                                <img src="./image/play.svg" alt="" />
+                            `);
+                        $("#play")[0].setAttribute('data-status', 'play');
+
+                        init_organization();
+                        begin();
+                        no_change_history = false;
+                        // now_script_id = script_id;
+
+                        $("#message_input").val("");
+                        $("#message_input").attr("placeholder", "Click here to create a new reproduce script and start a new conversation.");
+                        $("#chat_send").on('click', function () {
+                            window.location.reload();
+                        });
+                        $("#message_send").prop("disabled", true);
+                        $("#message_addtional").prop("disabled", true);
+
+                    } else {
+                        alert('导入的JSON数据格式不正确，必须是数组格式');
+                    }
+                } catch (error) {
+                    alert('解析JSON文件失败: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+    
+
+    function handleFileCascader(response) {
+        const recentData = response.map(function (item) {
+            return {
+                label: item,
+                value: item,
+                type: 'recent'
+            }
+        })
+
+        // 级联示例数据
+        var options = _cascaderOptions.map(function (item) {
+            if (item.id === 'Load') {
+                item.children = recentData;
+            }
+            return item;
+        })
+
+        
+        // 初始化级联选择器
+        if (_cascader) {
+            _cascader.updateOptions(options)
+            _cascader.renderMenus()
+        }
+
+    }
+
+
+    // 等待DOM加载完成
+    // 文件上传相关变量
+    var uploadArea = document.getElementById('message_addtional');
+    var fileInput = document.getElementById('fileAddtional');
+    var fileList = document.getElementById('fileList');
+    var uploadBtn = document.getElementById('uploadBtn');
+    var clearBtn = document.getElementById('clearBtn');
+    var uploadStatus = document.getElementById('uploadStatus');
+
+    // // 拖放上传事件
+    // uploadArea.addEventListener('dragover', function (e) {
+    //     e.preventDefault();
+    //     uploadArea.classList.add('highlight');
+    // });
+    //
+    // uploadArea.addEventListener('dragleave', function () {
+    //     uploadArea.classList.remove('highlight');
+    // });
+    //
+    // uploadArea.addEventListener('drop', function (e) {
+    //     e.preventDefault();
+    //     uploadArea.classList.remove('highlight');
+    //     handleFiles(e.dataTransfer.files);
+    // });
+
+    // 点击上传区域
+    uploadArea.addEventListener('click', function () {
+        fileInput.click();
+    });
+
+    // 文件选择变化
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files.length > 0) {
+            handleFiles(fileInput.files);
+        }
+    });
+
+    // // 清空列表按钮
+    // clearBtn.addEventListener('click', function () {
+    //     filesToUpload = [];
+    //     renderFileList();
+    // });
+
+    // 处理选择的文件
+    function handleFiles(files) {
+        for (var i = 0; i < files.length; i++) {
+            var file = files[i];
+
+            // 检查文件类型
+            var fileType = getFileType(file.name);
+            if (!fileType) {
+                showStatus('不支持的文件类型: ' + file.name, false);
+                continue;
+            }
+
+            // 先上传，成功以后再放入缓存中
+
+            uploadFile(file, (res) => {
+                // console.log('file', res);
+
+                // 添加到上传列表
+                filesToUpload.push({
+                    serverName: res.data.file_name,
+                    file: file,
+                    name: file.name,
+                    size: formatFileSize(file.size),
+                    type: fileType,
+                    progress: 0,
+                    status: 'pending' // pending, uploading, success, error
+                });
+                renderFileList();
+            })
+        }
+
+
+        // uploadBtn.disabled = filesToUpload.length === 0;
+    }
+
+    // 获取文件类型
+    function getFileType(filename) {
+        var ext = filename.split('.').pop().toLowerCase();
+        switch (ext) {
+            case 'txt':
+                return 'text';
+            case 'jpg':
+            case 'jpeg':
+                return 'jpg';
+            case 'png':
+                return 'png';
+            case 'mp4':
+                return 'mp4';
+            default:
+                return null;
+        }
+    }
+
+    // 格式化文件大小
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        var k = 1024;
+        var sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function fileDelete(v) {
+        // console.log('fileDelete', v);
+        filesToUpload = filesToUpload.filter(item => item.name !== v);
+        renderFileList()
+    }
+
+    renderFileList()
+
+    function fileReset() {
+        filesToUpload = [];
+        renderFileList();
+    }
+
+    // 渲染文件列表
+    function renderFileList() {
+        fileList.innerHTML = '';
+
+        if (filesToUpload.length === 0) {
+
+            if ($("#message_send").hasClass("message_send_active")) {
+                $("#message_send").removeClass('message_send_active'); // 有值时背景色为蓝色
+            }
+            fileList.innerHTML = '';
+            return;
+        }
+        $("#message_send").addClass('message_send_active'); // 有值时背景色为蓝色
+        filesToUpload.forEach(function (file, index) {
+            var fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+
+            var statusClass = '';
+            if (file.status === 'success') statusClass = 'status-success';
+            if (file.status === 'error') statusClass = 'status-error';
+
+            fileItem.innerHTML = `
+                        <div class="file-icon">
+                            <img src="./image/video.svg" alt=""></img>
+                        </div>
+                        <div class="file-info">
+                            <div class="file-name">${file.name}</div>
+                            <div class="file-size">${file.size}KB</div>
+                        </div>
+                        <div class="file-close" data-id="${file.name}">
+                            <img src="./image/group_close.svg" alt="#">
+                        </div>
+
+                    `;
+            fileList.appendChild(fileItem);
+        });
+        $('.file-close').on('click', function (event) {
+            const name = $(event.currentTarget).attr('data-id');
+            fileDelete(name);
+        })
+    }
+
+    // 显示上传状态
+    function showStatus(message, isSuccess) {
+        uploadStatus.style.display = 'block';
+        uploadStatus.textContent = message;
+        uploadStatus.className = 'upload-status ' + (isSuccess ? 'status-success' : 'status-error');
+
+        setTimeout(function () {
+            uploadStatus.style.display = 'none';
+        }, 3000);
+    }
+
+    // agentList
+    function parseChartAt(params) {
+        // console.log('parseChartAt', params);
+        argentName = params;
+        renderCharlist();
+        // 隐藏chat
+        $('#chat-at-list-container-id').hide();
+    }
+
+    var chatAgentList = document.getElementById('chatAgentList');
+    renderCharlist();
+    function renderCharlist() {
+        if (argentName) {
+            chatAgentList.innerHTML= `
+                <div class="chat-agent-item">
+                    <div class="chat-agent-info">
+                        <div class="chat-agent-name"><span>@</span>${argentName}</div>
+                    </div>
+                    <div class="chat-agent-close" onclick="chatAgentClose('${argentName}')" data-id="Group-favicon.png">
+                        <img src="./image/group_close.svg" alt="#">
+                    </div>
+                </div>
+            `;
+        }else{
+            chatAgentList.innerHTML = '';
+        }
+    }
+    function chatAgentClose(params) {
+        argentName ='';
+        renderCharlist();
+    }
+
+    /**
+     * 渲染@列表
+     */
+    function renderChatAtAgentList() {
+        const agentList = Object.keys(agent_id_dict);
+        var _agentListHtml = '';
+        agentList.forEach(item => {
+            const idx = agent_id_dict[item] % 16;
+            const _url = agentImgMap[idx]
+            _agentListHtml += `
+                <li class="chat-at-item">
+                    <div class="chat-at-avatar" style="background-color: ${_url?.bgColor}">
+                        <img src="${_url?.imgUrl}" alt="#"></img>
+                    </div>
+                    <div class="chat-at-name">${item}</div>
+                </li>
+            `
+        })
+        document.getElementById('chatAtListId').innerHTML = _agentListHtml;
+        $('.chat-at-list li').on('click', function (event) {
+            const name = $(event.currentTarget).text().trim();
+            parseChartAt(name);
+        });
+    }
+
+    // 键盘事件
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            // 先判断存在，在隐藏
+            $('#chat-at-list-container-id').hide();
+        }
+    });
+
+
+</script>
+</html>

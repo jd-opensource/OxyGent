@@ -1,0 +1,170 @@
+.view1-flowchart {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+}
+
+.view1-node {
+    border: 1px solid #E1E1E1;
+    border-radius: 4px;
+    padding: 10px 20px;
+    background-color: white;
+    text-align: center;
+    min-width: 80px;
+    position: relative;
+}
+
+.view1-container {
+    border: 1px solid #E1E1E1;
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background-color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.view1-label,
+.view1-node {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    color: #000;
+}
+
+.view1-container.checked,
+.view1-node.checked {
+    background-color: #5048E5;
+    color: #fff;
+}
+
+.view1-label > img,
+.view1-node > img {
+    width: 30px;
+    height: 30px;
+    border-radius: 30px;
+    background-color: #E1EFFD;
+    margin-right: 8px;
+}
+
+.view1-container>.view1-label {
+    background-color: #fff;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    user-select: none;
+}
+
+.view1-container>.view1-label::after {
+    content: '';
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 4px;
+    background: url('../image/arrow-bottom.svg') no-repeat left top;
+}
+
+.view1-container.view1-collapsed>.view1-label::after {
+    content: '';
+    background: url('../image/arrow-top.svg') no-repeat left top;
+}
+
+.view1-container.view1-collapsed>.view1-content {
+    display: none;
+}
+
+.view1-container.view1-collapsed {
+    min-width: 10vw;
+}
+
+.view1-content {
+    display: flex;
+    align-items: center;
+    margin-top: 15px;
+}
+
+.view1-parallel-container {
+    display: flex;
+    flex-direction: column;
+}
+
+.view1-parallel-branch {
+    display: flex;
+    align-items: center;
+}
+
+.arrow {
+    margin: 0 10px;
+    position: relative;
+}
+
+.arrow::after {
+    content: '→';
+    font-size: 24px;
+    color: #286DFF;
+}
+
+.view1-connector {
+    position: relative;
+    width: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.view1-connector .view1-line-start {
+    position: absolute;
+    height: 1px;
+    background-color: black;
+    width: 20px;
+    left: 0;
+}
+
+.view1-connector .view1-line-end {
+    position: absolute;
+    height: 1px;
+    background-color: black;
+    width: 20px;
+    right: 0;
+}
+
+.view1-connector .view1-line-end::after {
+    content: '';
+    position: absolute;
+    right: -2px;
+    top: -4px;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 5px solid black;
+}
+
+.view1-connector .view1-vertical-line {
+    position: absolute;
+    width: 1px;
+    background-color: black;
+    height: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.view1-parallel-join {
+    display: flex;
+    align-items: center;
+}
+
+.view1-join-lines {
+    position: relative;
+    width: 20px;
+}
+
+.view1-branch-line {
+    position: absolute;
+    height: 1px;
+    background-color: black;
+    width: 20px;
+    left: 0;
+}

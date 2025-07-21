@@ -1,0 +1,41 @@
+.section0 {
+    fill:#ffffff !important;
+}
+.section2 {
+    fill:#ffffff !important;
+}
+/* 修改第1种section样式 */
+.task0 {
+    fill: #FFE6CC !important;
+    stroke-width: 1px !important;
+}
+
+.task1 {
+    fill: #DAE8FC !important;
+    stroke-width: 1px !important;
+}
+
+.task2 {
+    fill: #D6E8D4 !important;
+    stroke-width: 1px !important;
+}
+
+.task3 {
+    fill: #F8CECC !important;
+    stroke-width: 1px !important;
+}
+
+
+.tick {
+    stroke: lightgrey !important;
+    shape-rendering: crispEdges !important;
+}
+
+
+#flowchart-container-gantt .mermaid-selected {
+    fill: #5048E5 !important;
+    stroke: #5048E5 !important;
+}
+#flowchart-container-gantt .taskText.clickable.mermaid-selected-text {
+    fill: white !important;
+}

@@ -1,0 +1,151 @@
+
+/*区分聊天*/
+.content{
+	width: 100%;
+    padding-left: 0px;
+}
+
+.me{
+    display: block;
+    clear: both;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.me .user-img {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: 4px;
+    background-color: #155EEF;
+}
+
+.me .user-img img {
+    width: 26px;
+    height: 26px;
+}
+
+.me p { 
+    float: right;
+}
+
+.me span{
+    float: right;
+    background: #E1EFFD;
+    padding: 14px;
+    border-radius:4px;
+    margin-right: 12px;
+    max-width: 485px;
+    position: relative;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+/*master*/
+.master{
+    /* width: 570px; */
+    display: block;
+    clear: both;
+    overflow: hidden;
+    /*float:left;*/
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.master img {
+    float: left;
+    background-color: #FEEAD5;
+    border-radius: 4px;
+    width: 42px;
+    height: 42px;
+}
+
+.master p {
+    margin: 0;
+    float: left;
+    position: absolute;
+    left: 54px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.master span{
+    background: #F3F3F5;
+    padding: 14px;
+    border-radius: 4px;
+    float: left;
+    margin: 23px 0 0 12px;
+    max-width: 485px;
+    position: relative;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+/*other*/
+.other{
+    display: block;
+    clear: both;
+    overflow: hidden;
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.other img {
+    float: left;
+    background-color: #FEEAD5;
+    border-radius: 4px;
+    width: 42px;
+    height: 42px;
+    padding: 6px;
+}
+
+.other p {
+    margin: 0;
+    float: left;
+    position: absolute;
+    left: 54px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.other span{
+    background: #F3F3F5;
+    padding: 14px;
+    border-radius: 4px;
+    float: left;
+    margin: 23px 0 0 12px;
+    width: 480px;
+    position: relative;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 14px;
+    line-height: 20px;
+}
+
+.other span p {
+    margin: 0;
+    float: left;
+    position: absolute;
+    left: 54px;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.other span section{
+    color: #155EEF;
+}
+
+#agent_log_close_id {
+    background-color: transparent;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 10;
+}

@@ -1,0 +1,60 @@
+ul,ol,li{
+    margin:0; 
+    padding:0; 
+}
+
+.nice-select input{
+    outline: none;
+    cursor: pointer;
+    width: 200px;
+    height: 28px;
+    font-size: 1em;
+    border: 1px solid #E0E0E0;
+    background: url(../image/icon.png) no-repeat scroll right center transparent;
+    background-position: 96% 50%;
+    padding: 0 10px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+    line-height: 28px;
+    background-color: white;
+}
+
+ul{
+    list-style: none;
+}
+
+.nice-select{
+    width: 200px;
+    margin: 0 0;
+    -webkit-border-radius: .3em;
+    -moz-border-radius: .3em;
+    border-radius: .3em;
+    background-color: white;
+}
+
+.nice-select ul{
+    display: none;
+    border: 1px solid #d5d5d5;
+    width: 13.9em;
+    position: absolute;
+    top: 2.4em;
+    overflow: hidden;
+    background-color: #fff;
+    max-height: 150px;
+    overflow-y: auto;
+    border-top: 0;
+    z-index: 10001;
+}
+
+.nice-select ul li{
+    height: 30px;
+    line-height: 2em;
+    overflow: hidden;
+    padding: 0 10px;
+    cursor: pointer;
+    border-top: 1px solid #d5d5d5;
+    font-size: small;
+}
+
+.nice-select ul li.on{background-color: #e0e0e0;}

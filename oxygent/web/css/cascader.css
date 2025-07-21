@@ -1,0 +1,108 @@
+/* 级联选择器容器 */
+* {
+    box-sizing: border-box;
+}
+.cascader-container {
+    position: relative;
+}
+
+/* 输入框样式 */
+.cascader-input {
+    width: 69px;
+    height: 42px;
+    border-radius: 2px;
+    /*background: #F3F3F5;*/
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    /*border: 1px solid #d9d9d9;*/
+    cursor: pointer;
+    transition: all 0.3s;
+    color: #000000;
+}
+
+.cascader-input:hover {
+    border-color: #40a9ff;
+}
+
+.cascader-input-placeholder {
+    color: #000000;
+}
+
+.arrow {
+    font-size: 12px;
+    color: #999;
+    transition: transform 0.3s;
+    width: 18px;
+    height: 18px;
+    margin-left: 5px;
+}
+
+.arrow.open {
+    transform: rotate(180deg);
+}
+
+/* 下拉菜单容器 */
+.cascader-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 4px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    z-index: 1000;
+    display: none;
+}
+
+.cascader-dropdown.show {
+    display: block;
+}
+
+/* 级联菜单样式 */
+.cascader-menus {
+    display: flex;
+    min-height: 180px;
+    max-height: 300px;
+}
+
+.cascader-menu {
+    /* width: 200px; */
+    border-right: 1px solid #f0f0f0;
+    overflow-y: auto;
+}
+
+.cascader-menu:last-child {
+    border-right: none;
+}
+
+.cascader-option {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    /*justify-content: space-between;*/
+    align-items: center;
+    gap: 5px;
+}
+
+.cascader-option:hover {
+    background-color: #f5f5f5;
+}
+
+.cascader-option.selected {
+    color: #1890ff;
+    font-weight: bold;
+    background-color: #e6f7ff;
+}
+
+.cascader-option.disabled {
+    color: #ccc;
+    cursor: not-allowed;
+}
+
+.cascader-option .arrow {
+    font-size: 12px;
+    margin-left: 8px;
+}

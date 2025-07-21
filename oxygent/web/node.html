@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <!-- 强制不缓存的 meta 标签 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="shortcut icon" href="./image/group-favicon.png" type="image/x-icon">
+    <title>Planning</title>
+    <link href="./css/normalize.css?time=2" rel="stylesheet">
+    <link href="./css/node.css?time=2" rel="stylesheet">
+    <link href="./css/style_load1.css?time=2" rel="stylesheet">
+    <link href="./css/main.css?time=2" rel="stylesheet">
+    <link href="./css/gantt.css?time=2" rel="stylesheet">
+    <link href="./css/flowchart_view1.css?time=2" rel="stylesheet">
+
+    <script src="https://code.jquery.com/jquery-1.10.2.js"></script>
+    <script src="./js/marked.min.js?time=2"></script>
+    <script src="./js/mermaid.min.js?time=2"></script>
+
+    <script src="./js/mermaid-sdk-gantt.js?time=2"></script>
+    <script src="./js/utils.js?time=2"></script>
+    <script src='./js/autosize.js?time=2'></script>
+    <script src="js/flowchart.js?time=2"></script>
+</head>
+<body>
+
+<div class="node-warpper">
+    <!-- 这部分要滚动吸顶 -->
+    <div class="node-container-top">
+    <div id="node-node-map" class="card">
+        <div class="node-node-map-container">
+            <div class="node-node-map-row ">
+                <div class="node-node-map-row-col">
+                    <div class="title">Node Map</div>
+                </div>
+                <div class="node-node-map-row-col">
+                    <div class="tabs ">
+                        <div class="tab-item tab-text-active" data-id="flowchart-container">
+                            <span class="tab-text ">View 1</span>
+                        </div>
+                        <div class="tab-item" data-id="gantt-container-section">
+                            <span class="tab-text ">View 2</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="node-node-map-row-col">
+                    <div class="node-node-map-row-col-btn" onclick="handleCollapse()">
+                        <img alt="" src="image/group-down.svg">
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="collapse-card" id="collapseExample">
+            <div class="tab-content">
+                <div id="flowchartId">
+                    <div id="flowchart-container" class="view1-flowchart"></div>
+                    <div id="flowchart-container-gantt"></div>
+                </div>
+            </div>
+        </div>
+        <!--        <div id="chart_log_close">-->
+        <!--            <button id="chart_log_close_id">-->
+        <!--                <img src="./image/group_close.svg" alt=""/>-->
+        <!--            </button>-->
+        <!--        </div>-->
+    </div>
+    <div class="agentCard">
+        <div class="avatarContainer">
+            <div id="avatarEmojiId" class="avatarEmoji"></div>
+        </div>
+        <div class="contentWrapper">
+            <div class="titleContainer">
+                <span id="node_callee" class="agentName"></span>
+                <div class="tagContainer">
+                    <span id="node_type" class="tagspan"></span>
+                </div>
+            </div>
+            <span class="metaInfo">create_time: <span id="node_create_time"></span></span>
+            <span id="trace_id" class="metaInfo"></span>
+            <span class="metaInfo">caller: <span id="node_caller" class="ellipsisspan metaInfo"></span></span>
+        </div>
+    </div>
+    </div>
+    <div class="node-container">
+        <div class="node-left">
+            <div class="mod-header">
+                <div class="mod-header-title">
+                    Configuration
+                </div>
+                <div class="mod-header-operation">
+                    <button class="mod-header-operation-btn" id="pre" onclick="pre()">
+                        <img src="./image/arrow-left.svg" alt="">
+                        Pre
+                    </button>
+                    <button class="mod-header-operation-btn" id="next" onclick="next()">
+                        <img src="./image/arrow-right.svg" alt="">
+                        Next
+                    </button>
+                    <button class="mod-header-operation-btn" id="call_llm" onclick="call_llm()">
+                        <img src="./image/refresh.svg" alt="">
+                        Regenerate
+                    </button>
+                </div>
+
+            </div>
+            <div class="mod-container">
+                <div class="mod-left" id="modLeftClassAttrId">
+                    <div id="classAttrId" class=""></div>
+                </div>
+                <div class="mod-right" id="rightArgumentsId">
+                    <div id="argumentsId" class=""></div>
+                </div>
+            </div>
+        </div>
+        <div class="node-right" id="rightPlayGroundId">
+            <div class="right_top">
+                <span>PlayGround</span>
+            </div>
+            <div class="right_middle">
+                <div id="llm_result"></div>
+            </div>
+            <div class="right_bottom">
+                <div id="llm_result_new">
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+<script>
+    let agent_id_dict = null;
+    const agentImgMap = [
+        {bgColor: '#FEEAD4', imgUrl: './image/agents/agent_0.png'},
+        {bgColor: '#E4FBCC', imgUrl: './image/agents/agent_1.png'},
+        {bgColor: '#D3F8DF', imgUrl: './image/agents/agent_2.png'},
+        {bgColor: '#E0F2FE', imgUrl: './image/agents/agent_3.png'},
+        {bgColor: '#E0EAFF', imgUrl: './image/agents/agent_4.png'},
+        {bgColor: '#EFF1F5', imgUrl: './image/agents/agent_5.png'},
+        {bgColor: '#FBE8FF', imgUrl: './image/agents/agent_6.png'},
+        {bgColor: '#FBE7F6', imgUrl: './image/agents/agent_7.png'},
+        {bgColor: '#FEF7C4', imgUrl: './image/agents/agent_8.png'},
+        {bgColor: '#E6F4D7', imgUrl: './image/agents/agent_9.png'},
+        {bgColor: '#D5F5F6', imgUrl: './image/agents/agent_10.png'},
+        {bgColor: '#D2E9FF', imgUrl: './image/agents/agent_11.png'},
+        {bgColor: '#D1DFFF', imgUrl: './image/agents/agent_12.png'},
+        {bgColor: '#D5D9EB', imgUrl: './image/agents/agent_13.png'},
+        {bgColor: '#EBE9FE', imgUrl: './image/agents/agent_14.png'},
+        {bgColor: '#FFE4E8', imgUrl: './image/agents/agent_15.png'},
+    ];
+
+    const typeMap = {
+        tool: './image/org_tool.svg',
+        llm: './image/org_model.svg',
+    };
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const param_id = urlParams.get('id');
+    var pre_id = "";
+    var next_id = "";
+    var plan_data = {};
+
+    (function () {
+    // 使用 sessionStorage 避免刷新死循环
+    if (!sessionStorage.getItem('page_refreshed')) {
+        sessionStorage.setItem('page_refreshed', '1');
+    }
+    })();
+
+    $(document).ready(function () {
+        intiNode()
+    })
+
+    function intiNode() {
+        $.ajax({
+            type: "GET",
+            url: "../get_organization",
+            success: function (response) {
+                response = response.data;
+                agent_id_dict = response.id_dict;
+            }
+        })
+    }
+
+    function get_plan(plan_id) {
+        $('.view1-node').each((i, ele) => {
+            $(ele).removeClass('checked');
+        });
+        $('.view1-container').each((i, ele) => {
+            $(ele).removeClass('checked');
+        });
+        $(`#${plan_id}`).addClass('checked');
+
+        $.ajax({
+            type: "GET",
+            url: "../node/",
+            data: {
+                item_id: plan_id
+            },
+            success: function (v) {
+                const data_range_map = v.data.data_range_map;
+
+                plan_data = v.data;
+                pre_id = plan_data.pre_id;
+                if (pre_id === "" || pre_id === undefined) {
+                    $("#pre").prop("disabled", true);
+                } else {
+                    $("#pre").prop("disabled", false);
+                }
+                next_id = plan_data.next_id;
+                if (next_id === "" || pre_id === undefined) {
+                    $("#next").prop("disabled", true);
+                } else {
+                    $("#next").prop("disabled", false);
+                }
+                // 展示图像
+                let img = '';
+                if (plan_data.node_type === 'agent' || plan_data.node_type === 'flow') {
+                    const idx = agent_id_dict[plan_data.callee] % 16;
+                    const cur = agentImgMap[idx];
+                    img = `<img alt="" src="${cur.imgUrl}" style="background-color: ${cur.bgColor}" />`;
+                } else {
+                    img = `<img alt="" src="${typeMap[plan_data.node_type]}" style="background-color: #E1EFFD" />`;
+                }
+
+                $("#avatarEmojiId").append(img);
+
+
+                // 展示node base info
+                $("#node_caller").text(plan_data.caller);
+                $("#node_callee").text(plan_data.callee);
+                $("#node_create_time").text(plan_data.create_time);
+                $("#messages").empty();
+                // 展示参数class_attr  需要展示多个参数
+
+                if (plan_data.input.class_attr) {
+                    Object.entries(plan_data.input.class_attr).forEach(([key, value]) => {
+                        const typeValue = getType(value);
+                        
+                        // 如果是字符串，直接渲染那
+                        if (typeValue === "boolean") {
+                            var numberHtml = value ? `
+                             <div class="cnt-switch">
+                                <span class="tit">${key}:</span>
+                                <label class="switch">
+                                    <input data-key="${key}" data-type="${typeValue}" id="${key}" type="checkbox" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        ` : `<div class="cnt-switch">
+                                <span class="tit">${key}:</span>
+                                <label class="switch">
+                                    <input data-key="${key}" data-type="${typeValue}" id="${key}" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>`
+                            $('#classAttrId').append(numberHtml);
+                        }
+                        if (typeValue === "number") {
+                            var numberHtml = `
+                            <div class="cnt_col">
+                                <label class="text_x_6">${key}:</label>
+                                <div class="text_x_8_wrap">
+                                    <input data-key="${key}" data-type="${typeValue}" id="${key}" type="text" class="text_x_8" value="${value}"/>
+                                </div>
+                            </div>`
+                            $('#classAttrId').append(numberHtml);
+                        }
+                        if (typeValue === "string") {
+                            var stringHtml = `
+                            <div class="cnt_col">
+                                <label class="text_x_6">${key}:</label>
+                                <div class="text_x_8_wrap">
+                                    <input data-key="${key}" data-type="${typeValue}" id="${key}" type="text" class="text_x_8" value="${value}"/>
+                                </div>
+                            </div>
+                        `
+                            $('#classAttrId').append(stringHtml);
+                        }
+                        if (typeValue === "object") {
+                            const prekey = key;
+                            Object.entries(value).forEach(([key, value]) => {
+                                var innerTypeValue = getType(value);
+                                if (innerTypeValue === "number") {
+                                    var numberHtmlValue = `
+                                    <div class="cnt_col">
+                                        <label class="text_x_6">${key}:</label>
+                                        <div class="text_x_8_wrap">
+                                            <input data-pre-key="${prekey}" data-key="${key}" data-type="${typeValue}" id="${key}" type="text" class="text_x_8" value="${value}"/>
+                                        </div>
+                                    </div>
+                                `
+                                    $('#classAttrId').append(numberHtmlValue);
+                                }
+                                if (innerTypeValue === "string") {
+                                    var stringHtml = `
+                                        <div class="cnt_col">
+                                            <label class="text_x_6">${key}:</label>
+                                            <div class="text_x_8_wrap">
+                                                <input data-pre-key="${prekey}" data-key="${key}" data-type="${typeValue}" id="${key}" type="text" class="text_x_8" value="${value}"/>
+                                            </div>
+                                        </div>
+                                    `
+                                    $('#classAttrId').append(stringHtml);
+                                }
+                            })
+                        }
+                    });
+                }
+
+                // 展示messages
+                if (plan_data && plan_data.input && plan_data.input.arguments) {
+                    Object.entries(plan_data.input.arguments).forEach(([key, value]) => {
+                        const typeValue = getType(value);
+                        if (typeValue === "string" || typeValue === "number") {
+                            var stringHtml = `
+                                <div class="mod-right-cnt_col">
+                                    <label class="text_x_6">${key}:</label>
+                                    <div class="mod-right-text_x_8_wrap">
+                                        <textarea data-key="${key}" data-type="${typeValue}" id="${key}"  
+                                            placeholder="None" class="text_x_8 ">${value}</textarea>
+                                    </div>
+                                </div>
+                            `
+                            $('#argumentsId').append(stringHtml);
+                        }
+                        
+                        if (typeValue === "array") {
+                            const argumentPrekey = key;
+                            value.forEach(({role, content}) => {
+                                var stringHtml = `
+                                    <div class="mod-right-cnt_col">
+                                        <label class="text_x_6">${role}:</label>
+                                        <div class="mod-right-text_x_8_wrap">
+                                            <textarea data-pre-key="${argumentPrekey}" data-key="${key}" data-type="${typeValue}" data-role="${role}" rows="4" cols="50" id="${role}"  placeholder="None" class="text_x_8">${content}</textarea>
+                                        </div>
+                                    </div>
+                                `
+                                $('#argumentsId').append(stringHtml);
+                            })
+                        }
+                    })
+                }
+                autosize(document.querySelectorAll('textarea'));
+
+                // 展示plan基本信息
+                $("#node_type").text(plan_data.node_type);
+                $("#trace_id").text('trace_id: ' + plan_data.trace_id);
+                $("#llm_result_new").empty();
+
+                // 展示结果
+
+                var _resutData = renderPlayGround(plan_data)
+                $("#llm_result").html(_resutData);
+                updateURLParameter('id', plan_data.node_id);
+                if (plan_data.node_type === 'llm') {
+                    $("#call_llm").prop("disabled", false);
+                } else {
+                    $("#call_llm").prop("disabled", true);
+                }
+            }
+        });
+    }
+
+    function updateURLParameter(paramName, paramValue) {
+        const url = new URL(window.location.href);
+        const params = new URLSearchParams(url.search);
+
+        // 如果参数已存在，则更新其值；否则，添加新参数
+        if (params.has(paramName)) {
+            params.set(paramName, paramValue);
+        } else {
+            params.append(paramName, paramValue);
+        }
+
+        // 使用 pushState() 更新 URL，避免页面刷新
+        const newUrl = `${url.origin}${url.pathname}?${params.toString()}${url.hash}`;
+        window.history.pushState({path: newUrl}, '', newUrl);
+    }
+
+
+    function pre() {
+        resetHtmlEmpty()
+        get_plan(pre_id);
+    }
+
+    function next() {
+        resetHtmlEmpty()
+        get_plan(next_id);
+    }
+
+    // 重新生成逻辑
+    function call_llm() {
+        $("#llm_result_new").empty();
+
+        // 增加loading效果
+        $("#llm_result_new").html('<div class="loading"> <span></span> <span></span> <span></span> <span></span> <span></span> </div>');
+        // 不可点击效果
+        $("#call_llm").html('<img src="./image/refresh.svg" alt=""> planning').prop("disabled", true);
+
+
+        var class_attrData = {};
+        Array.from($('#modLeftClassAttrId input')).forEach(($input) => {
+            console.log('$input', $input);
+            const key = $($input).attr('data-key');
+            const type = $($input).attr('data-type');
+            if (type === "string") {
+                class_attrData[key] = $($input).val();
+            }
+            if (type === "number") {
+                class_attrData[key] = Number($($input).val());
+            }
+            if (type === "boolean") {
+                class_attrData[key] = $($input).prop('checked');
+            }
+            if (type === "object") {
+                const preType = $($input).attr('data-pre-key');
+                class_attrData[preType] = {
+                    [key]: $($input).val(),
+                };
+            }
+        })
+
+        var arguments = {};
+        Array.from($('#rightArgumentsId textarea')).forEach((element) => {
+            console.log('$input', element);
+            const key = $(element).attr('data-key');
+            const type = $(element).attr('data-type');
+            if (type === "string") {
+                arguments[key] = $(element).val();
+            }
+            if (type === "number") {
+                arguments[key] = Number($(element).val());
+            }
+            if (type === "array") {
+                const preType = $(element).attr('data-pre-key');
+                const role = $(element).attr('data-role');
+
+                if (!arguments[preType]) {
+                    arguments[preType] = [];
+                }
+                arguments[preType].push({
+                    role: role,
+                    content: $(element).val(),
+                })
+            }
+        })
+        Array.from($('#rightArgumentsId input')).forEach((element) => {
+            console.log('$input', element);
+            const key = $(element).attr('data-key');
+            const type = $(element).attr('data-type');
+            if (type === "string") {
+                arguments[key] = $(element).val();
+            }
+            if (type === "array") {
+                const preType = $(element).attr('data-pre-key');
+                const role = $(element).attr('data-role');
+
+                if (!arguments[preType]) {
+                    arguments[preType] = [];
+                }
+                arguments[preType].push({
+                    role: role,
+                    content: $(element).val(),
+                })
+            }
+        })
+
+        // $('.right_middle #llm_result').empty();
+
+        $.ajax({
+            type: "POST",
+            url: "../call",
+            data: JSON.stringify({
+                class_attr: class_attrData,
+                arguments: arguments
+            }),
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            success: function (response_data) {
+                const htmlData = renderPlayGround({
+                    ...plan_data,
+                    ...response_data.data
+                });
+
+                $("#llm_result_new").empty();
+                $("#llm_result_new").html(htmlData);
+                $("#call_llm").html('<img src="./image/refresh.svg" alt=""> Regenerate').prop("disabled", false);
+            }
+        })
+    }
+
+    function renderPlayGround(data, type) {
+        const agentName = data.callee;
+
+        let img = '';
+        if (data.node_type === 'agent' || data.node_type === 'flow') {
+            const idx = agent_id_dict[data.callee] % 16;
+            const cur = agentImgMap[idx];
+            img = `<img alt="" src="${cur.imgUrl}" style="background-color: ${cur.bgColor}" />`;
+        } else {
+            img = `<img alt="" src="${typeMap[data.node_type]}" style="background-color: #E1EFFD" />`;
+        }
+
+        const div_agent_name = `
+            <div class="other">
+                
+                ${img}
+                <p>${agentName}</p>
+                <span>${data.output}</span>
+            </div>
+        `;
+        return div_agent_name;
+    }
+
+
+    // 初始化 Mermaid
+    mermaid.initialize({
+        theme: 'mermaid',
+        themeVariables: {
+            'curve': 'stepAfter'  // 使用直角连接线
+        },
+        startOnLoad: false,
+        flowchart: {
+            useMaxWidth: true,
+            // htmlLabels: true,
+            curve: 'stepAfter'
+        },
+        securityLevel: 'loose',
+        gantt: {
+            barHeight: 26,
+            barGap: 10,
+            fontSize: 14,
+            numberSectionStyles: 4,
+            axisFormat: "%M:%S:%L",
+            tickInterval: "millisecond",
+            topAxis: false,
+        }
+    });
+
+    getViews()
+    var ViewsDatas = []
+
+    //  获取全局节点
+    function getViews() {
+        $.ajax({
+            type: "GET",
+            url: "../view/",
+            data: {
+                item_id: param_id
+            },
+            success: function (plan_data) {
+                ViewsDatas = plan_data.data.nodes;
+                renderFlowchart(ViewsDatas, 'flowchart-container');
+                get_plan(param_id);
+            }
+        });
+    }
+
+    function resetHtmlEmpty() {
+        $('#avatarEmojiId').empty();
+        $('#classAttrId').empty();
+        $('#argumentsId').empty();
+    }
+
+    //  处理gantt点击事件
+    function renderGanttClick(v) {
+        // resetHtmlEmpty()
+        // get_plan(v)
+    }
+
+    function renderGanttClickHighlight(id, tagName = 'rect') {
+        let server_id = null;
+        if (tagName === 'rect') {
+            // 移除所有节点的选中样式
+            document.querySelectorAll('.task').forEach(node => {
+                if (node.id === id) {
+                    node.classList.add('mermaid-selected');
+                } else {
+                    node.classList.remove('mermaid-selected');
+                }
+            });
+
+            // 移除所有节点的选中文本样式
+            document.querySelectorAll('.taskText').forEach(node => {
+                if (node.id === `${id}-text`) {
+                    node.classList.add('mermaid-selected-text');
+                } else {
+                    node.classList.remove('mermaid-selected-text');
+                }
+            });
+            server_id = id;
+        }else if (tagName === 'text') {
+            // 移除所有节点的选中样式
+            document.querySelectorAll('.task').forEach(node => {
+                if (node.id === id.replace('-text', '')) {
+                    node.classList.add('mermaid-selected');
+                } else {
+                    node.classList.remove('mermaid-selected');
+                }
+            });
+            // 移除所有节点的选中文本样式
+            document.querySelectorAll('.taskText').forEach(node => {
+                if (node.id === id) {
+                    node.classList.add('mermaid-selected-text');
+                } else {
+                    node.classList.remove('mermaid-selected-text');
+                }
+            });
+            server_id = id.replace('-text', '');
+        }
+        resetHtmlEmpty()
+        get_plan(server_id)
+    }
+    
+
+    $('#flowchart-container-gantt').on('click', function (event) {
+        const state = event.target;
+        const id = state.id;
+        const tagName = state.tagName
+        if (!id) {
+            return;
+        }
+        renderGanttClickHighlight(id, tagName);
+    })
+
+
+
+    $(".tabs .tab-item").click(function () {
+        // 链式编程操作
+        // 2.点击的同时，得到当前li 的索引号
+        var index = $(this).attr('data-id');
+        $(this).addClass("tab-text-active").siblings().removeClass("tab-text-active");
+
+        if (index === 'flowchart-container') {
+            renderFlowchart(ViewsDatas, 'flowchart-container');
+            $('#flowchart-container').css('display', 'flex');
+            $('#flowchart-container-gantt').css('display', 'none');
+
+        } else if (index === 'gantt-container-section') {
+            renderGantt(ViewsDatas, 'flowchart-container-gantt');
+            $('#flowchart-container').css('display', 'none');
+            $('#flowchart-container-gantt').css('display', 'block');
+        
+            setTimeout(() => {
+                renderGanttClickHighlight(param_id, 'rect');    
+            }, 100);
+        }
+        // 3.让下部里面相应索引号的item显示，其余的item隐藏
+    });
+
+
+    function handleCollapse() {
+        const _visible = $('#collapseExample').css('display');
+        if (_visible === 'block') {
+            $('#collapseExample').css({
+                'display': 'none'
+            });
+            adjustModLeftHeight('modLeftClassAttrId')
+            adjustModLeftHeight('rightArgumentsId')
+        } else {
+            $('#collapseExample').css('display', 'block');
+            adjustModLeftHeight('modLeftClassAttrId')
+            adjustModLeftHeight('rightArgumentsId')
+        }
+    }
+
+    // 流程图选中逻辑
+    $('#flowchart-container').on('click', function (event) {
+        let aimDom = $(event.target);
+        let id = null;
+        while (!id && aimDom.attr('id') !== 'flowchart-container') {
+            if (aimDom.attr('id')) {
+                id = aimDom.attr('id');
+            } else {
+                aimDom = aimDom.parent();
+            }
+        }
+
+        if (id) {
+            resetHtmlEmpty();
+            get_plan(id);
+        }
+    });
+
+    // 动态调整modLeftClassAttrId的高度
+    adjustModLeftHeight('modLeftClassAttrId')
+    adjustModLeftHeight('rightArgumentsId')
+    // adjustModLeftHeight('rightPlayGroundId')
+    function adjustModLeftHeight(id) {
+        const modLeftClassAttrId = document.getElementById(id);
+        // 获取当前节点的距离顶部的高度
+        const currentTop = modLeftClassAttrId.offsetTop;
+        // 获取当前窗口的高度
+        const windowHeight = window.innerHeight;
+        // 计算可用高度
+        const availableHeight = windowHeight - currentTop - 50;
+        // 设置高度
+        modLeftClassAttrId.style.height = availableHeight + 'px';
+        modLeftClassAttrId.style.overflow = 'auto';
+    }
+</script>
+</html>

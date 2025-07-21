@@ -1,0 +1,159 @@
+
+.chat-at-list-container {
+    display: none;
+    max-width: 180px;
+    background: #fff;
+    position: fixed;
+    box-shadow: 0 2px 2px #F4F4F4;
+}
+
+/* 添加底部小三角形 */
+.chat-at-list-container::after {
+    content: '';
+    position: absolute;
+    bottom: -9px; /* 调整三角形位置 */
+    left: 45%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid #F4F4F4; /* 匹配边框颜色 */
+    /*box-shadow: 0 2px 2px #F4F4F4;*/
+}
+
+.chat-at-list {
+    background: #fff;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 2px 2px #F4F4F4;
+    max-height: 300px;
+    overflow-y: scroll;
+}
+
+.chat-at-item {
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    cursor: pointer;
+}
+
+.chat-at-item .chat-at-avatar {
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
+}
+
+.chat-at-item .chat-at-name{
+  white-space: nowrap;      /* 禁止文本换行 */
+  overflow: hidden;         /* 隐藏超出部分 */
+  text-overflow: ellipsis;  /* 显示省略号 */
+  width: 100%;
+  margin-left: 4px
+}
+
+.chat-at-item .chat-at-avatar img {
+    width: 100%;
+}
+.chat-at-item:hover {
+    background: #f0f0f0;
+}
+
+
+/* hover 提示信息样式 */
+.chat-agent-tooltip {
+    text-align: left;
+    display: none;
+    position: absolute;
+    top: -40px;
+    left: -10px;
+    /*transform: translateX(-50%);*/
+    background-color: #333;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.chat-agent-tooltip-title {
+    display: block;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.chat-agent-tooltip-description {
+    display: block;
+    font-size: 12px;
+}
+
+.chat-agent-upload-area:hover .chat-agent-tooltip {
+    display: block;
+    opacity: 1;
+}
+
+.chat-agent-upload-area.highlight {
+    border-color: #1890ff;
+    background-color: #e6f7ff;
+}
+
+/* 聊天页面中的样式 */
+.chat-agent-list-chat {
+    margin-top: 10px;
+    flex-direction: row-reverse;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: calc(100% - 15px);
+    max-height: 80px;
+    display: flex;
+    overflow-y: auto;
+}
+
+.chat-agent-list {
+    flex-wrap: wrap;
+    gap: 8px;
+    width: calc(100% - 48px);
+    max-height: 80px;
+    display: flex;
+    overflow-y: auto;
+}
+
+.chat-agent-item:hover {
+    cursor: pointer;
+    transition: box-shadow .2s ease-in-out;
+}
+
+.chat-agent-item:hover .chat-agent-close {
+    display: block;
+    opacity: 1;
+}
+
+.chat-agent-close {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.chat-agent-item {
+    position: relative;
+    align-items: center;
+    display: flex;
+    border-radius: 4px;
+    background: #F3F3F5;
+    padding: 4px;
+}
+
+.chat-agent-info {
+    display: block;
+    margin-right: 10px;
+}
+
+.chat-agent-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #155EEF;
+}
+

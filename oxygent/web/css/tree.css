@@ -1,0 +1,190 @@
+.xMind .node-parent,
+.xMind .node-childrens {
+  display: table-cell;
+  height: 100%;
+  vertical-align: middle;
+}
+
+.xMind .node-parent .node {
+  position: relative;
+}
+.xMind .node-parent .node .expandIcon {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%);
+  z-index: 2;
+}
+
+.xMind .node {
+  box-sizing: border-box;
+}
+
+.xMind .node-cell {
+  position: relative;
+  padding: 10px;
+  padding-left: 20px;
+}
+
+.xMind .node-lines {
+  position: absolute;
+  left: 0;
+  height: 100%;
+  top: 0;
+}
+
+.xMind .line {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.xMind .line > .line-right {
+  width: 15px;
+  border-bottom: solid 1px #D0D5DB;
+}
+
+.xMind .line-top,
+.xMind .line-bottom {
+  height: 50%;
+  border-left: solid 1px #D0D5DB;
+  width: 20px;
+  box-sizing: border-box;
+}
+
+.xMind .expandIcon {
+  display: inline-block;
+  vertical-align: top;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: lightGray;
+  font-size: 14px;
+  text-align: center;
+  line-height: 12px;
+  color: #000;
+}
+
+.xMind .line-top {
+  border-bottom: solid 1px #D0D5DB;
+}
+
+.xMind .line-top.first {
+  border: 0;
+  border-bottom: solid 1px #D0D5DB;
+}
+
+.xMind .line-bottom.last {
+  border: 0;
+}
+
+.xMind .tagBox {
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.xMind .tagNode {
+  position: relative;
+}
+
+.xMind .tag-line {
+  height: 50px;
+  border-bottom: solid 1px #D0D5DB;
+  box-sizing: border-box;
+  position: absolute;
+  top: 50%;
+  margin-top: -50px;
+  width: 100%;
+}
+
+.xMind .tag-node {}
+
+.xMind .taglineDown {
+  width: 0;
+  border-left: solid 1px #D0D5DB;
+  height: 100%;
+  margin: auto;
+}
+
+/* item样式  */
+.xMind {}
+.xMind .pre-connector {
+  position: relative;
+  z-index: 1;
+}
+.xMind .pre-connector::before {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 10px;
+  background-color: #286DFF;
+  position: absolute;
+  left: -2px;
+}
+
+.xMind .expandIcon:hover {
+  background-color: #155EEE !important;
+  color: #fff;
+  cursor: pointer;
+}
+
+.xMind .item-template {
+  display: inline-flex;
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: 52px;
+  padding: 10px;
+
+  border-radius: 4px;
+  background-color: #fff;
+  white-space:nowrap;
+
+  box-shadow: 0px 2.2px 6.6px rgba(0, 0, 0, 0.05);
+
+  font-size: 14px;
+  font-weight: 500;
+  color: #000; 
+}
+.xMind .item-template.remote {
+  border: 1px dashed gray;
+}
+.xMind .item-template .item-template-img {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: #E1EFFD;
+  border-radius: 30px;
+  margin-right: 8px;  
+}
+.xMind .item-template .item-template-img.agent {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+}
+.xMind .item-template .item-template-img.agent > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.xMind .item-template .item-template-img.agent > span img {
+  width: 30px;
+  height: 30px;
+}
+
+.xMind .item-template.select {
+  background-color: #155EEE;
+  color: #fff;
+}
+.xMind .item-template.pre-select {
+  border: 2px solid #155EEE;
+}

@@ -205,3 +205,42 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Python 缓存文件和编译文件
+__pycache__/
+*.pyc
+
+# Jupyter Notebook 检查点文件
+.ipynb_checkpoints/
+
+# 常见压缩包及二进制文件
+*.zip
+*.bin
+*.pkl
+
+# 常见项目配置目录及文件（如 IDE 配置）
+.idea/
+.vscode/
+.joycoder/
+.joycode/
+*.iml
+*.xml
+pyproject.toml*
+
+# 数据文件与日志文件
+*.jsonl
+*.log
+*.lock
+
+# macOS 系统生成的隐藏文件
+.DS_Store
+
+# 环境变量及敏感信息文件
+.env
+
+# 运行时产生的文件
+cache_dir/
+cache_dir_dev/
+local_file/
+docs/
+deployment/
