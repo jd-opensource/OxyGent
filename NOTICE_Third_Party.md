@@ -1,5 +1,6 @@
 =====================================================================
 The AndroidAutoSize Package
+
 https://github.com/JessYanCoding/AndroidAutoSize/blob/master/LICENSE
 
 The MIT License
@@ -26,6 +27,7 @@ THE SOFTWARE.
 
 =====================================================================
 The LlamaIndex Package
+
 https://github.com/run-llama/llama_index/blob/main/LICENSE
 
                                  Apache License

@@ -214,6 +214,7 @@ OxyGent最新版本 (July 9, 2025) 在[GAIA](https://huggingface.co/spaces/gaia-
 ## 8. 致谢
 ---
 感谢以下为OxyGent作出贡献的[开发者](https://github.com/jd-opensource/OxyGent/graphs/contributors)
+
 <a href="https://github.com/jd-opensource/OxyGent/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=jd-opensource/OxyGent" />
 </a>

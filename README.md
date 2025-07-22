@@ -210,6 +210,7 @@ If you encounter any issues along the way, you are welcomed to submit reproducib
 ## 8. About the Contributors
 ---
 Thanks to all the following [developers](https://github.com/jd-opensource/OxyGent/graphs/contributors) who have contributed to OxyGent.
+
 <a href="https://github.com/jd-opensource/OxyGent/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=jd-opensource/OxyGent" />
 </a>
