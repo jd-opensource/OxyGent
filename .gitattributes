@@ -1,0 +1,30 @@
+oxygent/web linguist-generated
+oxygent/web/css linguist-generated
+oxygent/web/js linguist-generated
+
+oxygent/web/js/agent_tree.js linguist-generated
+oxygent/web/js/autosize.js linguist-generated
+oxygent/web/js/cascader.js linguist-generated
+oxygent/web/js/flowchart.js linguist-generated
+oxygent/web/js/mermaid-sdk-flowchart.js linguist-generated
+oxygent/web/js/mermaid-sdk-gantt.js linguist-generated
+oxygent/web/js/mermaid-source.js linguist-generated
+oxygent/web/js/message.js linguist-generated
+oxygent/web/js/upload.js linguist-generated
+oxygent/web/js/utils.js linguist-generated
+
+oxygent/web/css/agent-list.css linguist-generated
+oxygent/web/css/cascader.css linguist-generated
+oxygent/web/css/file.css linguist-generated
+oxygent/web/css/flowchart_view1.css linguist-generated
+oxygent/web/css/gantt.css linguist-generated
+oxygent/web/css/main.css linguist-generated
+oxygent/web/css/node.css linguist-generated
+oxygent/web/css/select.css linguist-generated
+oxygent/web/css/style.css linguist-generated
+oxygent/web/css/style_load1.css linguist-generated
+oxygent/web/css/style_load2.css linguist-generated
+oxygent/web/css/tree.css linguist-generated
+
+oxygent/web/index.html linguist-generated
+oxygent/web/node.html linguist-generated
