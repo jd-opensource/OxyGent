@@ -32,6 +32,21 @@ class StdioMCPClient(BaseMCPClient):
     """
 
     params: dict[str, Any] = Field(default_factory=dict)
+    async def _ensure_directories_exist(self, args: list[str]) -> None:
+        """Ensure required directories exist before starting MCP server."""
+        if len(args) >= 2 and "server-filesystem" in " ".join(args):
+            target_dir = args[-1]
+            if not os.path.exists(target_dir):
+                try:
+                    os.makedirs(target_dir, exist_ok=True)
+                    logger.info(f"Created directory: {target_dir}")
+                except Exception as e:
+                    logger.warning(f"Could not create directory {target_dir}: {e}")
+        
+        if args[0] == "--directory" and args[2] == "run":
+            mcp_tool_file = os.path.join(args[1], args[3])
+            if not os.path.exists(mcp_tool_file):
+                raise FileNotFoundError(f"{mcp_tool_file} does not exist.")
 
     async def init(self) -> None:
         """Initialize the stdio connection to the MCP server process.
@@ -55,6 +70,7 @@ class StdioMCPClient(BaseMCPClient):
             raise ValueError("The command must be a valid string and cannot be None.")
 
         args = self.params["args"]
+        await self._ensure_directories_exist(args)
         if args[0] == "--directory" and args[2] == "run":
             mcp_tool_file = os.path.join(args[1], args[3])
             if not os.path.exists(mcp_tool_file):
@@ -80,3 +96,4 @@ class StdioMCPClient(BaseMCPClient):
             logger.error(f"Error initializing server {self.name}: {e}")
             await self.cleanup()
             raise Exception(f"Server {self.name} error")
+
