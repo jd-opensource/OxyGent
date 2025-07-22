@@ -211,10 +211,15 @@ OxyGent最新版本 (July 9, 2025) 在[GAIA](https://huggingface.co/spaces/gaia-
 如果你在OxyGent的开发或使用过程中遇到任何问题，欢迎在项目的Issue区域提交可复现的步骤或日志片段。
 如果您有企业内部Slack，请直接联系OxyGent Core团队。
 
+欢迎沟通和联系我们:
+
+<div align="center">
+  <img src="https://pfst.cf2.poecdn.net/base/image/b1e96084336a823af7835f4fe418ff49da6379570f0c32898de1ffe50304d564?w=1760&h=2085&pmaid=425510216" alt="contact" width="50%" height="50%">
+</div>
+
 ## 8. 致谢
 ---
 感谢以下为OxyGent作出贡献的[开发者](https://github.com/jd-opensource/OxyGent/graphs/contributors)
-
 <a href="https://github.com/jd-opensource/OxyGent/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=jd-opensource/OxyGent" />
 </a>
