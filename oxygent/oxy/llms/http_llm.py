@@ -13,6 +13,7 @@ from ...config import Config
 from ...schemas import OxyRequest, OxyResponse, OxyState
 from .remote_llm import RemoteLLM
 
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +23,7 @@ class HttpLLM(RemoteLLM):
     This class provides a concrete implementation of RemoteLLM for communicating
     with remote LLM APIs over HTTP. It handles API authentication, request
     formatting, and response parsing for OpenAI-compatible APIs.
-    """
+    """ 
 
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         """Execute an HTTP request to the remote LLM API.
@@ -37,10 +38,11 @@ class HttpLLM(RemoteLLM):
         Returns:
             OxyResponse: The response containing the LLM's output with COMPLETED state.
         """
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}",
-        }
+        use_openai = self.api_key is not None
+        url = self.base_url.rstrip("/")
+        headers = {"Content-Type": "application/json"}
+        if use_openai:
+            headers["Authorization"] = f"Bearer {self.api_key}"
 
         # Construct payload for the API request
         llm_config = Config.get_llm_config()
@@ -59,16 +61,21 @@ class HttpLLM(RemoteLLM):
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             http_response = await client.post(
-                self.base_url, headers=headers, json=payload
+                url, headers=headers, json=payload
             )
             http_response.raise_for_status()
             data = http_response.json()
             if "error" in data:
                 error_message = data["error"].get("message", "Unknown error")
                 raise ValueError(f"LLM API error: {error_message}")
-            response_message = data["choices"][0]["message"]
-            result = response_message.get("content") or response_message.get(
-                "reasoning_content"
-            )
+            
+            if use_openai:
+                response_message = data["choices"][0]["message"]
+                result = response_message.get("content") or response_message.get(
+                    "reasoning_content"
+                )
+            else:  # ollama
+                result = data["message"]["content"]
+            
 
             return OxyResponse(state=OxyState.COMPLETED, output=result)

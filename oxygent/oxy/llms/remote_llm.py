@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import Field, field_validator
 
+
 from ...schemas import OxyRequest, OxyResponse
 from .base_llm import BaseLLM
 
@@ -19,11 +20,11 @@ class RemoteLLM(BaseLLM):
         model_name: The specific model name to use for requests.
     """
 
-    api_key: Optional[str] = Field("")
+    api_key: Optional[str] = Field(default=None)
     base_url: Optional[str] = Field("")
     model_name: Optional[str] = Field("")
 
-    @field_validator("api_key", "base_url", "model_name")
+    @field_validator("base_url", "model_name")
     @classmethod
     def not_empty(cls, value, info):
         key = info.field_name
@@ -38,7 +39,7 @@ class RemoteLLM(BaseLLM):
                 f"Environment variable '{key}' type error: expected str, got {type(value).__name__}."
             )
 
-        if not value.strip():
+        if not isinstance(value, str) or not value.strip():
             raise ValueError(f"{key} must be a non-empty string")
 
         return value
