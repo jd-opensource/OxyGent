@@ -1,6 +1,6 @@
 import asyncio
 
-from oxygent import MAS, OxyRequest, oxy
+from oxygent import MAS, OxyRequest, oxy, preset_tools
 from oxygent.utils.env_utils import get_env_var
 
 INSTRUCTION = """
@@ -44,14 +44,15 @@ def update_query(oxy_request: OxyRequest):
 
 
 oxy_space = [
-    oxy.HttpLLM(
+    oxy.OpenAILLM(
         name="default_llm",
         api_key=get_env_var("DEFAULT_LLM_API_KEY"),
         base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
         model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
         llm_params={"temperature": 0.01},
-        semaphore=4,
     ),
+    preset_tools.time_tools,
+    preset_tools.file_tools,
     oxy.ReActAgent(
         name="master_agent",
         is_master=True,
@@ -59,6 +60,7 @@ oxy_space = [
         timeout=100,
         prompt=INSTRUCTION,
         func_process_input=update_query,
+        tools=["time_tools", "file_tools"],
     ),
 ]
 
