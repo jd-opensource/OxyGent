@@ -50,6 +50,7 @@ oxy_space = [
         base_url=get_env_var("DEFAULT_LLM_BASE_URL"),
         model_name=get_env_var("DEFAULT_LLM_MODEL_NAME"),
         llm_params={"temperature": 0.01},
+        semaphore=4,
     ),
     preset_tools.time_tools,
     preset_tools.file_tools,
