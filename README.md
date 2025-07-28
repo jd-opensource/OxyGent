@@ -9,7 +9,7 @@ Open-Source Multi-Agent Framework for Real-World Task Automation
 
 OxyGent Gaia is a specialized branch of the OxyGent framework optimized for the GAIA Benchmark—a comprehensive evaluation of real-world task automation capabilities. This implementation achieves 59.14% accuracy on GAIA, demonstrating state-of-the-art performance among open-source multi-agent frameworks.
 
-Built upon OxyGent's core architecture, Gaia implements hierarchical multi-agent processing with patented Oxy-Atomic Operators™ for dynamic task decomposition and execution.
+Built upon OxyGent's core architecture, Gaia implements hierarchical multi-agent processing with Oxy-Atomic Operators for dynamic task decomposition and execution.
 
 ## ⚙️ Installation
 

@@ -9,7 +9,7 @@ Open-Source Multi-Agent Framework for Real-World Task Automation
 
 OxyGent Gaia 是 OxyGent 框架的一个专门分支，针对 GAIA 基准测试进行了优化。GAIA 是对现实世界任务自动化能力的全面评估。本实现在 GAIA 上达到了 59.14% 的准确率，展示了开源多智能体框架的先进性能。
 
-基于 OxyGent 的核心架构，Gaia 实现了分层多智能体处理，并采用专利的 Oxy-Atomic Operators™ 进行动态任务分解和执行。
+基于 OxyGent 的核心架构，Gaia 实现了分层多智能体处理，并采用 Oxy-Atomic Operators 进行动态任务分解和执行。
 
 ## ⚙️ 安装
 
