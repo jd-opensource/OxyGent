@@ -1,0 +1,5 @@
+conda create -n oxygent_gaia python=3.12
+pip install camelot-py==1.0.0 camel-ai==0.2.70
+pip install -r requirements.txt
+pip install oxygent
+playwright install chromium --with-deps --no-shell

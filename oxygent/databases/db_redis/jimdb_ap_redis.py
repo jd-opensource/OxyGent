@@ -11,9 +11,8 @@ import logging
 import traceback
 from functools import wraps
 from typing import Union
-
-from aioredis import Redis
-from aioredis.exceptions import ConnectionError, TimeoutError
+from redis.asyncio import Redis
+from redis.asyncio import ConnectionError, TimeoutError
 
 logger = logging.getLogger(__name__)
 
