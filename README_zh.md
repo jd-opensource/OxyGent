@@ -19,10 +19,9 @@ conda create -n oxygent_gaia python=3.12
 conda activate oxygent_gaia
 
 # 安装核心依赖
-pip install oxygent 
 pip install camelot-py==1.0.0
 pip install -r requirements.txt
-
+pip install oxygent 
 # 配置浏览器自动化
 playwright install chromium --with-deps --no-shell
 ```
