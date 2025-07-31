@@ -1,0 +1,43 @@
+import os
+from oxygent import MAS, oxy, OxyRequest
+
+
+def add_knowledge(oxy_request: OxyRequest):
+    def retrieval(query):
+        """以下用字符匹配模拟，而生产环境中，通常根据query从知识库中召回topK条相关语料，可以增加多路召回逻辑"""
+        knowledage_dict = {
+            "211时效": "**京东211时效**：当日上午 11:00 前提交的现货订单(部分城市为上午 10:00 点前），当日送达；当日 23:00 前提交的现货订单，次日 15:00 前送达。(注：先货订单以提交时间点开始计算，先款订单以支付完成时间点计算)",
+            "使命": "京东的使命是 “技术为本，让生活更美好”。",
+            "愿景": "京东的愿景是成为全球最值得信赖的企业。",
+            "价值观": "京东核心价值观是：客户为先、创新、拼搏、担当、感恩、诚信。",
+        }
+        return "\n\n".join([v for k, v in knowledage_dict.items() if k in query])
+
+    oxy_request.arguments["knowledge"] = retrieval(oxy_request.get_query())
+    return oxy_request
+
+
+oxy_space = [
+    oxy.HttpLLM(
+        name="default_llm",
+        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        llm_params={"temperature": 0.1},
+    ),
+    oxy.ChatAgent(
+        name="QA_agent",
+        llm_model="default_llm",
+        prompt="""你是一个乐于助人的助手！你可以参考以下的知识回答问题：\n${knowledge}""",
+        func_process_input=add_knowledge,
+        team_size=4,   # 简单MoA实现
+    ),
+]
+
+async def main():
+    async with MAS(oxy_space=oxy_space) as mas:
+        await mas.start_web_service(first_query="京东的211时效是什么？")
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())

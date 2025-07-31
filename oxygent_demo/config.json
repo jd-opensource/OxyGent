@@ -1,0 +1,75 @@
+{
+    "default": {
+        "app": {
+            "name": "app",
+            "version": "1.0.0"
+        },
+        "env": {"path": ".env", "is_override": false},
+        "log": {
+            "path": "./cache_dir/app.log",
+            "level_root": "INFO",
+            "level_terminal": "INFO",
+            "level_file": "INFO",
+            "color_is_on_background": false,
+            "is_bright": false,
+            "only_message_color": true,
+            "color_tool_call": "YELLOW",
+            "color_observation": "CYAN",
+            "is_detailed_tool_call": true,
+            "is_detailed_observation": true
+        },
+        "llm": {"temperature": 0.1, "max_tokens": 4096, "top_p": 1},
+        "cache": {"save_dir": "./cache_dir"},
+        "message": {
+            "is_send_tool_call": true,
+            "is_send_observation": true,
+            "is_send_think": false,
+            "is_send_answer": true,
+            "is_stored": false
+        },
+        "vearch": {},
+        "es": {},
+        "redis": {},
+        "server": {
+            "host": "127.0.0.1",
+            "port": 8080,
+            "auto_open_webpage": true,
+            "log_level": "INFO"
+        },
+        "agent": {
+            "prompt": "",
+            "llm_model": "",
+            "input_schema": {
+                "properties": {"query": {"description": "Query question"}},
+                "required": ["query"]
+            }
+        }
+    },
+    "dev": {
+        "vearch": {
+            "router_url": "${VEARCH_ROUTER_URL}",
+            "master_url": "${VEARCH_MASTER_URL}",
+            "db_name": "${VEARCH_NAME}",
+            "tool_df_space_name": "${TOOL_OF_SPACE_NAME}",
+            "embedding_model_url": "${EMBEDDING_MODEL_URL}"
+        }
+    },
+    "test": {
+
+    },
+    "prod": {
+        "log": {
+            "path": "/export/Logs/server_logger.log",
+            "color_is_on_background": true,
+            "is_bright": true
+        },
+        "cache": {
+            "save_dir": "/export/data"
+        },
+        "server": {
+            "host": "0.0.0.0",
+            "port": 8080,
+            "auto_open_webpage": false
+        }
+    }
+}
