@@ -32,7 +32,7 @@ class Message(BaseModel):
     """Represents a chat message in the conversation."""
 
     role: Literal["system", "user", "assistant", "tool"] = Field(...)
-    content: Optional[Union[str, list]] = Field(default=None)
+    content: Optional[Union[str, list, dict]] = Field(default=None)
     tool_calls: Optional[List[ToolCall]] = Field(default=None)
     name: Optional[str] = Field(default=None)
     tool_call_id: Optional[str] = Field(default=None)

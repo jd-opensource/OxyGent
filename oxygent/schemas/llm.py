@@ -18,5 +18,5 @@ class LLMState(Enum):
 
 class LLMResponse(BaseModel):
     state: LLMState
-    output: Union[str, dict]
+    output: Union[str, dict, list]
     ori_response: str = Field(default="")
