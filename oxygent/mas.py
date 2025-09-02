@@ -262,9 +262,9 @@ class MAS(BaseModel):
                     "properties": {
                         "request_id": {"type": "keyword"},
                         "group_id": {"type": "keyword"},
-                        "group_data": Config.get_es_schema_group_data(),
+                        "group_data": Config.get_es_schema_group_data() or {"type": "text"},
                         "trace_id": {"type": "keyword"},
-                        "shared_data": Config.get_es_schema_shared_data(),
+                        "shared_data": Config.get_es_schema_shared_data() or {"type": "text"},
                         "from_trace_id": {"type": "keyword"},
                         "root_trace_ids": {"type": "keyword"},
                         "input": {"type": "text"},
@@ -318,7 +318,7 @@ class MAS(BaseModel):
                         "call_stack": {"type": "text"},
                         "node_id_stack": {"type": "text"},
                         "pre_node_ids": {"type": "text"},
-                        "shared_data": Config.get_es_schema_shared_data(),
+                        "shared_data": Config.get_es_schema_shared_data() or {"type": "text"},
                         "create_time": {
                             "format": "yyyy-MM-dd HH:mm:ss.SSSSSSSSS",
                             "type": "date",

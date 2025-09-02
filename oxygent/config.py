@@ -71,7 +71,6 @@ class Config:
         },
         "vearch": {},
         "es": {},
-        "es_schema": {"shared_data": {"type": "text"}, "group_data": {"type": "text"}},
         "redis": {},
         "redis_param": {
             "expire_time": 86400,  # 24 hours 60 * 60 * 24
