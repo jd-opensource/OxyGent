@@ -389,7 +389,7 @@ class Config:
 
     @classmethod
     def get_es_schema_shared_data(cls) -> dict:
-        return cls.get_module_config("es_schema", "shared_data")
+        return cls.get_module_config("es_schema", "shared_data", {"type": "text"})
 
     @classmethod
     def set_es_schema_group_data(cls, es_schema_config):
@@ -397,7 +397,7 @@ class Config:
 
     @classmethod
     def get_es_schema_group_data(cls) -> dict:
-        return cls.get_module_config("es_schema", "group_data")
+        return cls.get_module_config("es_schema", "group_data", {"type": "text"})
 
     """ vearch """
 
