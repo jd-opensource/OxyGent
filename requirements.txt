@@ -21,3 +21,4 @@ python-multipart==0.0.20
 pillow==11.2.1
 respx==0.22.0
 aioresponses==0.7.8
+playwright==1.48.0
