@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  oxygent:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=docker
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:-}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-http://host.docker.internal:11434}
+      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-llama2}
+    volumes:
+      - ./cache_dir:/app/cache_dir
+      - ./local_file:/app/local_file
+      - ./.env:/app/.env:ro
+    depends_on:
+      - redis
+      - elasticsearch
+    networks:
+      - oxygent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - oxygent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  elasticsearch:
+    image: elasticsearch:7.17.0
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - oxygent-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Optional: Local Ollama service for LLM
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - oxygent-network
+    restart: unless-stopped
+    profiles:
+      - with-ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  redis_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  ollama_data:
+    driver: local
+
+networks:
+  oxygent-network:
+    driver: bridge

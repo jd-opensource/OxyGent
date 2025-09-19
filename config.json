@@ -112,6 +112,45 @@
             "password": "${REDIS_TEST_PASSWORD}"
         }
     },
+    "docker": {
+        "server": {
+            "host": "0.0.0.0",
+            "port": 8080,
+            "auto_open_webpage": false,
+            "log_level": "INFO"
+        },
+        "log": {
+            "path": "./cache_dir/app.log",
+            "level_root": "INFO",
+            "level_terminal": "INFO",
+            "level_file": "INFO",
+            "color_is_on_background": false,
+            "is_bright": false
+        },
+        "cache": {
+            "save_dir": "./cache_dir"
+        },
+        "es": {
+            "hosts": ["elasticsearch:9200"],
+            "user": "",
+            "password": ""
+        },
+        "redis": {
+            "host": "redis",
+            "port": 6379,
+            "password": "",
+            "db": 0
+        },
+        "message": {
+            "is_send_tool_call": true,
+            "is_send_observation": true,
+            "is_send_think": false,
+            "is_send_answer": true,
+            "is_stored": true,
+            "is_show_in_terminal": true,
+            "is_send_full_arguments": false
+        }
+    },
     "prod": {
         "message": {
             "is_send_tool_call": false,

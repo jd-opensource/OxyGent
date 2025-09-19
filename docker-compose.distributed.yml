@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # Master Agent Service (Port 8080)
+  master-agent:
+    build: .
+    command: ["python", "-m", "examples.distributed.app_master_agent"]
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_ENV=docker
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:-}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-http://host.docker.internal:11434}
+      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-llama2}
+    volumes:
+      - ./cache_dir:/app/cache_dir
+      - ./local_file:/app/local_file
+      - ./config.json:/app/config.json:ro
+      - ./.env:/app/.env:ro
+    depends_on:
+      - math-agent
+      - time-agent
+    networks:
+      - distributed-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Math Agent Service (Port 8081)
+  math-agent:
+    build: .
+    command: ["python", "-m", "examples.distributed.app_math_agent"]
+    ports:
+      - "8081:8081"
+    environment:
+      - APP_ENV=docker
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:-}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-http://host.docker.internal:11434}
+      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-llama2}
+    volumes:
+      - ./cache_dir:/app/cache_dir
+      - ./.env:/app/.env:ro
+    networks:
+      - distributed-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Time Agent Service (Port 8082)
+  time-agent:
+    build: .
+    command: ["python", "-m", "examples.distributed.app_time_agent"]
+    ports:
+      - "8082:8082"
+    environment:
+      - APP_ENV=docker
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:-}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-http://host.docker.internal:11434}
+      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-llama2}
+    volumes:
+      - ./cache_dir:/app/cache_dir
+      - ./.env:/app/.env:ro
+    networks:
+      - distributed-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Local Ollama service for LLM
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - distributed-network
+    restart: unless-stopped
+    profiles:
+      - with-ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  distributed-network:
+    driver: bridge

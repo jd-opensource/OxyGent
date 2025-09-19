@@ -73,6 +73,34 @@ The latest version of OxyGent (July 15, 2025) in the [GAIA](https://huggingface.
 **For Users**: Experience seamless teamwork from an intelligent agent ecosystem.
 
 ## 5. Quick Start
+
+### 🐳 Docker Deployment (Recommended)
+The fastest way to get started with OxyGent:
+
+```bash
+# Clone the repository
+git clone https://github.com/jd-opensource/OxyGent.git
+cd OxyGent
+
+# Copy and configure environment variables
+cp env.example .env
+# Edit .env file with your LLM API keys
+
+# Start with Docker Compose
+./docker-start.sh
+
+# Or use specific deployment modes:
+./docker-start.sh ecommerce    # E-commerce microservices example
+./docker-start.sh distributed  # Distributed computing example
+```
+
+**Access the services:**
+- Web Interface: http://localhost:8080/web/index.html
+- API Documentation: http://localhost:8080/docs
+
+For detailed Docker deployment guide, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md).
+
+### 📦 Manual Installation
 ### Step 1: Create and activate a python environment
 - Method 1: conda
    ```bash

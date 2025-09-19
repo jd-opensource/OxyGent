@@ -1,0 +1,83 @@
+# Git
+.git
+.gitignore
+*.md
+!DOCKER_DEPLOYMENT.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv*/
+venv*/
+.env*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cache and logs
+cache_dir/
+cache_dir_*/
+*.log
+logs/
+
+# Test files
+test_*.py
+*_test.py
+test/
+
+# Documentation
+docs/
+*.md
+!README.md
+!DOCKER_DEPLOYMENT.md
+
+# Local files
+local_file/
+.pytest_cache/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Other
+.coverage
+.nyc_output
+coverage/
+*.lcov
