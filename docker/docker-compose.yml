@@ -7,16 +7,18 @@ services:
       - "8080:8080"
     environment:
       - APP_ENV=docker
-      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:-}
-      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-http://host.docker.internal:11434}
-      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-llama2}
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-https://api.openai.com/v1}
+      - DEFAULT_LLM_MODEL_NAME=${DEFAULT_LLM_MODEL_NAME:-gpt-3.5-turbo}
     volumes:
       - ./cache_dir:/app/cache_dir
       - ./local_file:/app/local_file
       - ./.env:/app/.env:ro
     depends_on:
-      - redis
-      - elasticsearch
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     networks:
       - oxygent-network
     restart: unless-stopped
@@ -24,8 +26,8 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   redis:
     image: redis:7-alpine
@@ -61,7 +63,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Optional: Local Ollama service for LLM
+  # Optional: Local Ollama service for LLM (use with --profile ollama)
   ollama:
     image: ollama/ollama:latest
     ports:
@@ -72,13 +74,19 @@ services:
       - oxygent-network
     restart: unless-stopped
     profiles:
-      - with-ollama
+      - ollama
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
+    # Auto-pull a basic model for quick start
+    command: >
+      sh -c "ollama serve & 
+             sleep 10 && 
+             ollama pull llama2 && 
+             wait"
 
 volumes:
   redis_data:

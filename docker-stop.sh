@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Docker Compose 停止脚本 for OxyGent
-# 使用方法: ./docker-stop.sh [basic|ecommerce|distributed] [options]
+# OxyGent Docker 停止脚本
+# 使用方法: ./docker-stop.sh [options]
 
 set -e
 
@@ -31,16 +31,10 @@ info() {
 # 显示帮助信息
 show_help() {
     cat << EOF
-OxyGent Docker Compose 停止脚本
+OxyGent Docker 停止脚本
 
 使用方法:
-    $0 [MODE] [OPTIONS]
-
-模式:
-    basic           停止基础单服务部署 (默认)
-    ecommerce       停止电商分布式示例部署
-    distributed     停止分布式计算示例部署
-    all             停止所有模式的部署
+    $0 [OPTIONS]
 
 选项:
     --remove-volumes    删除所有数据卷 (⚠️ 会丢失数据)
@@ -49,24 +43,21 @@ OxyGent Docker Compose 停止脚本
     --help              显示此帮助信息
 
 示例:
-    $0                              # 停止基础部署
-    $0 ecommerce                    # 停止电商部署
-    $0 all --cleanup                # 停止所有服务并完全清理
-    $0 basic --remove-volumes       # 停止基础部署并删除数据卷
+    $0                              # 停止服务
+    $0 --remove-volumes             # 停止并删除数据卷
+    $0 --cleanup                    # 完全清理所有资源
 
 EOF
 }
 
 # 停止服务
 stop_services() {
-    local mode=$1
     local remove_volumes=false
     local remove_images=false
     local cleanup=false
-    local compose_files=()
+    local compose_file="./docker/docker-compose.yml"
 
     # 解析参数
-    shift
     while [[ $# -gt 0 ]]; do
         case $1 in
             --remove-volumes)
@@ -90,58 +81,36 @@ stop_services() {
         esac
     done
 
-    # 选择 compose 文件
-    case $mode in
-        ecommerce)
-            compose_files=("./docker/docker-compose.ecommerce.yml")
-            log "停止电商分布式部署"
-            ;;
-        distributed)
-            compose_files=("./docker/docker-compose.distributed.yml")
-            log "停止分布式计算部署"
-            ;;
-        all)
-            compose_files=("./docker/docker-compose.yml" "./docker/docker-compose.ecommerce.yml" "./docker/docker-compose.distributed.yml")
-            log "停止所有部署"
-            ;;
-        basic|*)
-            compose_files=("./docker/docker-compose.yml")
-            log "停止基础部署"
-            ;;
-    esac
+    log "停止 OxyGent 服务"
 
-    # 停止每个 compose 文件的服务
-    for compose_file in "${compose_files[@]}"; do
-        if [[ -f "$compose_file" ]]; then
-            info "处理: $compose_file"
+    # 检查并停止服务
+    if [[ -f "$compose_file" ]]; then
+        # 显示当前运行的服务
+        if docker-compose -f "$compose_file" ps -q | grep -q .; then
+            info "当前运行的服务:"
+            docker-compose -f "$compose_file" ps
             
-            # 显示当前运行的服务
-            if docker-compose -f "$compose_file" ps -q | grep -q .; then
-                info "当前运行的服务:"
-                docker-compose -f "$compose_file" ps
-                
-                # 停止服务
-                log "停止服务..."
-                docker-compose -f "$compose_file" down
-                
-                # 删除数据卷
-                if [[ "$remove_volumes" == true ]]; then
-                    warn "删除数据卷 (数据将丢失)..."
-                    docker-compose -f "$compose_file" down -v
-                fi
-                
-                # 删除镜像
-                if [[ "$remove_images" == true ]]; then
-                    info "删除相关镜像..."
-                    docker-compose -f "$compose_file" down --rmi all
-                fi
-            else
-                info "没有运行的服务: $compose_file"
+            # 停止服务
+            log "停止服务..."
+            docker-compose -f "$compose_file" down
+            
+            # 删除数据卷
+            if [[ "$remove_volumes" == true ]]; then
+                warn "删除数据卷 (数据将丢失)..."
+                docker-compose -f "$compose_file" down -v
+            fi
+            
+            # 删除镜像
+            if [[ "$remove_images" == true ]]; then
+                info "删除相关镜像..."
+                docker-compose -f "$compose_file" down --rmi all
             fi
         else
-            warn "Compose 文件不存在: $compose_file"
+            info "没有运行的 OxyGent 服务"
         fi
-    done
+    else
+        warn "Compose 文件不存在: $compose_file"
+    fi
 
     # 完全清理
     if [[ "$cleanup" == true ]]; then
@@ -169,24 +138,19 @@ stop_services() {
 
 # 显示运行状态
 show_status() {
-    info "当前 Docker 服务状态:"
+    info "当前 OxyGent 服务状态:"
     
-    local compose_files=("./docker/docker-compose.yml" "./docker/docker-compose.ecommerce.yml" "./docker/docker-compose.distributed.yml")
-    local has_running=false
+    local compose_file="./docker/docker-compose.yml"
     
-    for compose_file in "${compose_files[@]}"; do
-        if [[ -f "$compose_file" ]]; then
-            if docker-compose -f "$compose_file" ps -q | grep -q .; then
-                echo
-                info "$compose_file 运行状态:"
-                docker-compose -f "$compose_file" ps
-                has_running=true
-            fi
+    if [[ -f "$compose_file" ]]; then
+        if docker-compose -f "$compose_file" ps -q | grep -q .; then
+            echo
+            docker-compose -f "$compose_file" ps
+        else
+            info "没有运行的 OxyGent 服务"
         fi
-    done
-    
-    if [[ "$has_running" == false ]]; then
-        info "没有运行的 OxyGent 服务"
+    else
+        warn "Compose 文件不存在: $compose_file"
     fi
     
     echo
@@ -196,9 +160,7 @@ show_status() {
 
 # 主函数
 main() {
-    local mode="basic"
-    
-    # 解析第一个参数作为模式
+    # 解析参数
     if [[ $# -gt 0 ]]; then
         case $1 in
             --help|-h)
@@ -208,14 +170,6 @@ main() {
             --status)
                 show_status
                 exit 0
-                ;;
-            basic|ecommerce|distributed|all)
-                mode=$1
-                ;;
-            --*)
-                # 如果第一个参数是选项，使用默认模式
-                mode="basic"
-                set -- "basic" "$@"
                 ;;
         esac
     fi

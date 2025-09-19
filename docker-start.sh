@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Docker Compose 启动脚本 for OxyGent
-# 使用方法: ./docker-start.sh [basic|ecommerce|distributed] [options]
+# OxyGent Docker 快速启动脚本
+# 使用方法: ./docker-start.sh [options]
 
 set -e
 
@@ -31,27 +31,26 @@ info() {
 # 显示帮助信息
 show_help() {
     cat << EOF
-OxyGent Docker Compose 启动脚本
+OxyGent Docker 快速启动脚本
 
 使用方法:
-    $0 [MODE] [OPTIONS]
-
-模式:
-    basic           基础单服务部署 (默认)
-    ecommerce       电商分布式示例部署
-    distributed     分布式计算示例部署
+    $0 [OPTIONS]
 
 选项:
-    --with-ollama   包含本地 Ollama LLM 服务
+    --ollama        使用本地 Ollama LLM 服务 (无需 API 密钥)
     --build         强制重新构建镜像
     --logs          启动后显示日志
     --help          显示此帮助信息
 
 示例:
-    $0                              # 基础部署
-    $0 basic --with-ollama          # 基础部署 + Ollama
-    $0 ecommerce --build --logs     # 电商部署 + 重构建 + 显示日志
-    $0 distributed                  # 分布式计算部署
+    $0                              # 基础部署 (需要 LLM API 密钥)
+    $0 --ollama                     # 使用本地 Ollama (无需 API 密钥)
+    $0 --build --logs               # 重构建 + 显示日志
+    $0 --ollama --logs              # Ollama + 显示日志
+
+环境变量配置:
+    cp docker/env.example .env      # 复制环境变量模板
+    # 编辑 .env 文件，填入您的 LLM API 配置
 
 EOF
 }
@@ -115,18 +114,16 @@ create_directories() {
 
 # 启动服务
 start_services() {
-    local mode=$1
-    local compose_file="docker-compose.yml"
+    local compose_file="./docker/docker-compose.yml"
     local profiles=""
     local build_flag=""
     local logs_flag=false
 
     # 解析参数
-    shift
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --with-ollama)
-                profiles="--profile with-ollama"
+            --ollama)
+                profiles="--profile ollama"
                 shift
                 ;;
             --build)
@@ -144,21 +141,10 @@ start_services() {
         esac
     done
 
-    # 选择 compose 文件
-    case $mode in
-        ecommerce)
-            compose_file="./docker/docker-compose.ecommerce.yml"
-            log "使用电商分布式部署模式"
-            ;;
-        distributed)
-            compose_file="./docker/docker-compose.distributed.yml"
-            log "使用分布式计算部署模式"
-            ;;
-        basic|*)
-            compose_file="./docker/docker-compose.yml"
-            log "使用基础部署模式"
-            ;;
-    esac
+    log "启动 OxyGent 服务"
+    if [[ -n "$profiles" ]]; then
+        info "包含本地 Ollama LLM 服务"
+    fi
 
     if [[ ! -f "$compose_file" ]]; then
         error "Compose 文件不存在: $compose_file"
@@ -180,7 +166,7 @@ start_services() {
     docker-compose -f $compose_file ps
 
     # 显示访问信息
-    show_access_info $mode
+    show_access_info
 
     # 显示日志
     if [[ "$logs_flag" == true ]]; then
@@ -191,68 +177,42 @@ start_services() {
 
 # 显示访问信息
 show_access_info() {
-    local mode=$1
-    
     echo
-    info "🎉 服务启动成功！"
+    info "🎉 OxyGent 启动成功！"
     echo
     
-    case $mode in
-        ecommerce)
-            info "电商系统访问地址:"
-            info "  网关服务 (主入口): http://localhost:8085/web/index.html"
-            info "  产品服务: http://localhost:8080/web/index.html"
-            info "  订单服务: http://localhost:8081/web/index.html"
-            info "  支付服务: http://localhost:8082/web/index.html"
-            info "  物流服务: http://localhost:8083/web/index.html"
-            ;;
-        distributed)
-            info "分布式计算系统访问地址:"
-            info "  主控制器 (主入口): http://localhost:8080/web/index.html"
-            info "  数学计算服务: http://localhost:8081/web/index.html"
-            info "  时间服务: http://localhost:8082/web/index.html"
-            ;;
-        *)
-            info "OxyGent 服务访问地址:"
-            info "  Web 界面: http://localhost:8080/web/index.html"
-            info "  API 文档: http://localhost:8080/docs"
-            ;;
-    esac
+    info "服务访问地址:"
+    info "  🌐 Web 界面: http://localhost:8080/web/index.html"
+    info "  📚 API 文档: http://localhost:8080/docs"
+    info "  ❤️  健康检查: http://localhost:8080/health"
     
     echo
-    info "其他服务:"
-    info "  Redis: localhost:6379"
-    info "  Elasticsearch: http://localhost:9200"
-    if docker-compose ps | grep -q ollama; then
-        info "  Ollama: http://localhost:11434"
+    info "支持服务:"
+    info "  📊 Redis: localhost:6379"
+    info "  🔍 Elasticsearch: http://localhost:9200"
+    if docker-compose -f "./docker/docker-compose.yml" ps | grep -q ollama; then
+        info "  🤖 Ollama: http://localhost:11434"
     fi
     
     echo
     info "常用命令:"
-    info "  查看日志: docker-compose -f $compose_file logs -f"
-    info "  停止服务: docker-compose -f $compose_file down"
-    info "  重启服务: docker-compose -f $compose_file restart"
+    info "  📋 查看日志: ./docker-start.sh --logs"
+    info "  🛑 停止服务: ./docker-stop.sh"
+    info "  🔄 重启服务: docker-compose -f ./docker/docker-compose.yml restart"
+    
+    echo
+    info "💡 提示: 首次启动可能需要几分钟来下载镜像和初始化服务"
     echo
 }
 
 # 主函数
 main() {
-    local mode="basic"
-    
-    # 解析第一个参数作为模式
+    # 解析参数
     if [[ $# -gt 0 ]]; then
         case $1 in
             --help|-h)
                 show_help
                 exit 0
-                ;;
-            basic|ecommerce|distributed)
-                mode=$1
-                ;;
-            --*)
-                # 如果第一个参数是选项，使用默认模式
-                mode="basic"
-                set -- "basic" "$@"
                 ;;
         esac
     fi
