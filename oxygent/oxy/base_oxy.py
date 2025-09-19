@@ -266,20 +266,6 @@ class Oxy(BaseModel, ABC):
                         "query": {
                             "bool": {
                                 "must": [
-                                    {"term": {"node_id": oxy_request.restart_node_id}},
-                                ]
-                            }
-                        },
-                        "size": 1,
-                    },
-                )
-            else:
-                es_response = await self.mas.es_client.search(
-                    Config.get_app_name() + "_node",
-                    {
-                        "query": {
-                            "bool": {
-                                "must": [
                                     {
                                         "term": {
                                             "trace_id": oxy_request.reference_trace_id
@@ -289,7 +275,7 @@ class Oxy(BaseModel, ABC):
                                 ]
                             }
                         },
-                        "size": 10,
+                        "size": 1,
                     },
                 )
             logging.info(f"ES search returned {len(es_response['hits']['hits'])} hits")

@@ -95,6 +95,8 @@ class MAS(BaseModel):
         lambda x: x, exclude=True, description="filter function"
     )
 
+    routers: list = Field(default_factory=list)
+
     def __init__(self, **kwargs):
         """Construct a new :class:`MAS`.
 
@@ -883,6 +885,8 @@ class MAS(BaseModel):
         ) as web_path:
             app.mount("/web", StaticFiles(directory=str(web_path)), name="web")
         app.include_router(router)
+        for app_router in self.routers:
+            app.include_router(app_router)
         """
         For all of the nodes we fill the following information:
         - path: The path from the root node (master agent) to the currrent node.
