@@ -338,3 +338,159 @@ async def test_get_browser_context_import_error():
                 await _get_browser_context()
     finally:
         _browser_context = original_context
+
+
+# ────────────────────────────────────────────────────────────────────────────
+# Direct Execution Test Examples
+# ────────────────────────────────────────────────────────────────────────────
+
+def run_direct_test_examples():
+    """
+    直接执行的测试示例
+    
+    依赖要求:
+    1. 安装 Playwright: pip install playwright
+    2. 安装浏览器驱动: playwright install
+    3. 确保网络连接正常
+    
+    测试环境要求:
+    - Python 3.8+
+    - 可访问互联网
+    - 足够的磁盘空间用于截图保存
+    """
+    import asyncio
+    import json
+    import os
+    from pathlib import Path
+    
+    async def test_basic_navigation():
+        """测试基本的网页导航功能"""
+        print("🧪 测试 1: 基本网页导航")
+        try:
+            result = await navigate_to_url("https://httpbin.org")
+            result_data = json.loads(result)
+            
+            if result_data["status"] == "success":
+                print(f"✅ 导航成功: {result_data['title']}")
+                print(f"   URL: {result_data['url']}")
+            else:
+                print(f"❌ 导航失败: {result_data.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ 测试异常: {e}")
+    
+    async def test_content_extraction():
+        """测试内容提取功能"""
+        print("\n🧪 测试 2: 内容提取")
+        try:
+            result = await extract_page_content("https://httpbin.org", max_length=500)
+            result_data = json.loads(result)
+            
+            if result_data["status"] == "success":
+                print(f"✅ 内容提取成功")
+                print(f"   内容长度: {result_data['length']} 字符")
+                print(f"   前100字符: {result_data['content'][:100]}...")
+            else:
+                print(f"❌ 内容提取失败: {result_data.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ 测试异常: {e}")
+    
+    async def test_screenshot():
+        """测试截图功能"""
+        print("\n🧪 测试 3: 网页截图")
+        try:
+            # 确保输出目录存在
+            output_dir = Path("test_screenshots")
+            output_dir.mkdir(exist_ok=True)
+            screenshot_path = output_dir / "test_httpbin_screenshot.png"
+            
+            result = await take_screenshot("https://httpbin.org", str(screenshot_path))
+            result_data = json.loads(result)
+            
+            if result_data["status"] == "success":
+                print(f"✅ 截图成功")
+                print(f"   保存路径: {result_data['screenshot_path']}")
+                if os.path.exists(result_data['screenshot_path']):
+                    file_size = os.path.getsize(result_data['screenshot_path'])
+                    print(f"   文件大小: {file_size} bytes")
+            else:
+                print(f"❌ 截图失败: {result_data.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ 测试异常: {e}")
+    
+    async def test_links_extraction():
+        """测试链接提取功能"""
+        print("\n🧪 测试 4: 链接提取")
+        try:
+            result = await get_page_links("https://httpbin.org", max_links=5)
+            result_data = json.loads(result)
+            
+            if result_data["status"] == "success":
+                print(f"✅ 链接提取成功")
+                print(f"   总链接数: {result_data['total_links']}")
+                for i, link in enumerate(result_data['links'][:3], 1):
+                    print(f"   {i}. {link['text'][:50]}... -> {link['href']}")
+            else:
+                print(f"❌ 链接提取失败: {result_data.get('error', 'Unknown error')}")
+                
+        except Exception as e:
+            print(f"❌ 测试异常: {e}")
+    
+    async def run_all_tests():
+        """运行所有直接测试"""
+        print("=" * 60)
+        print("🚀 OxyGent 浏览器自动化工具 - 直接执行测试")
+        print("=" * 60)
+        print("\n📋 测试环境检查:")
+        
+        # 检查 Playwright 是否已安装
+        try:
+            from playwright.async_api import async_playwright
+            print("✅ Playwright 已安装")
+        except ImportError:
+            print("❌ Playwright 未安装")
+            print("   请运行: pip install playwright")
+            print("   然后运行: playwright install")
+            return
+        
+        # 检查网络连接
+        import socket
+        try:
+            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            print("✅ 网络连接正常")
+        except OSError:
+            print("⚠️ 网络连接可能存在问题")
+        
+        print("\n开始执行测试...\n")
+        
+        await test_basic_navigation()
+        await test_content_extraction()
+        await test_screenshot()
+        await test_links_extraction()
+        
+        print("\n" + "=" * 60)
+        print("🎯 测试完成!")
+        print("=" * 60)
+        print("\n💡 如需进一步测试，请运行:")
+        print("   python -m pytest test/unittest/test_browser_automation_tools.py -v")
+        print("\n📁 截图文件保存在: ./test_screenshots/")
+    
+    # 运行测试
+    asyncio.run(run_all_tests())
+
+
+if __name__ == "__main__":
+    print("🔧 运行浏览器自动化工具直接测试示例")
+    print("\n⚠️  注意: 这将执行真实的浏览器操作，需要:")
+    print("   1. pip install playwright")
+    print("   2. playwright install")
+    print("   3. 网络连接")
+    print("\n按 Enter 继续，或 Ctrl+C 取消...")
+    
+    try:
+        input()
+        run_direct_test_examples()
+    except KeyboardInterrupt:
+        print("\n\n👋 测试已取消")
