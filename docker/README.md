@@ -24,16 +24,19 @@ vim .env
 
 ```bash
 # 基础启动（需要 LLM API 密钥）
-./docker-start.sh
+cd docker && ./docker-start.sh
 
 # 使用本地 Ollama（无需 API 密钥）
-./docker-start.sh --ollama
+cd docker && ./docker-start.sh --ollama
 
 # 强制重新构建
-./docker-start.sh --build
+cd docker && ./docker-start.sh --build
 
 # 启动并显示日志
-./docker-start.sh --logs
+cd docker && ./docker-start.sh --logs
+
+# 或者在根目录使用快捷方式
+./docker-start.sh
 ```
 
 ### 4. 访问服务
@@ -102,39 +105,39 @@ DEFAULT_LLM_MODEL_NAME=moonshot-v1-8k
 
 ```bash
 # 基础启动
-./docker-start.sh
+cd docker && ./docker-start.sh
 
 # 使用 Ollama
-./docker-start.sh --ollama
+cd docker && ./docker-start.sh --ollama
 
 # 重新构建镜像
-./docker-start.sh --build
+cd docker && ./docker-start.sh --build
 
 # 显示日志
-./docker-start.sh --logs
+cd docker && ./docker-start.sh --logs
 ```
 
 ### 停止服务
 
 ```bash
 # 停止服务
-./docker-stop.sh
+cd docker && ./docker-stop.sh
 
 # 停止并删除数据卷（⚠️ 会丢失数据）
-./docker-stop.sh --remove-volumes
+cd docker && ./docker-stop.sh --remove-volumes
 
 # 完全清理
-./docker-stop.sh --cleanup
+cd docker && ./docker-stop.sh --cleanup
 ```
 
 ### 查看状态
 
 ```bash
 # 查看服务状态
-./docker-stop.sh --status
+cd docker && ./docker-stop.sh --status
 
 # 查看日志
-docker compose -f ./docker/docker-compose.yml logs -f
+cd docker && docker compose -f ./docker-compose.yml logs -f
 ```
 
 ## 🐛 故障排除
@@ -186,13 +189,13 @@ lsof -i :8080
 
 ```bash
 # 查看所有服务日志
-docker compose -f ./docker/docker-compose.yml logs
+cd docker && docker compose -f ./docker-compose.yml logs
 
 # 查看特定服务日志
-docker compose -f ./docker/docker-compose.yml logs oxygent
+cd docker && docker compose -f ./docker-compose.yml logs oxygent
 
 # 实时日志
-docker compose -f ./docker/docker-compose.yml logs -f
+cd docker && docker compose -f ./docker-compose.yml logs -f
 ```
 
 ## 🔒 安全注意事项

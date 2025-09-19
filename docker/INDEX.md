@@ -29,11 +29,14 @@ docker/
 
 3. **启动服务**:
    ```bash
-   # 基础启动
-   ./docker-start.sh
+   # 在 docker 目录中启动
+   cd docker && ./docker-start.sh
    
    # 使用本地 Ollama
-   ./docker-start.sh --ollama
+   cd docker && ./docker-start.sh --ollama
+   
+   # 或在根目录使用快捷方式
+   ./docker-start.sh
    ```
 
 4. **访问服务**:
@@ -49,6 +52,6 @@ docker/
 ```bash
 # 完整部署流程
 cp docker/env.example .env && \
-echo "请编辑 .env 文件填入 API 密钥，然后运行: ./docker-start.sh" && \
+echo "请编辑 .env 文件填入 API 密钥，然后运行: cd docker && ./docker-start.sh" && \
 vim .env
 ```

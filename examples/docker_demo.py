@@ -1,4 +1,4 @@
-"""Docker 部署专用的简化 demo，避开 MCP 工具问题"""
+"""Docker 部署专用的简化 demo"""
 
 import asyncio
 import os
@@ -38,7 +38,7 @@ oxy_space = [
     ),
 ]
 
-
+# 默认使用K2
 async def main():
     async with MAS(oxy_space=oxy_space) as mas:
         # 不发送初始查询，避免启动时触发 API 限制
