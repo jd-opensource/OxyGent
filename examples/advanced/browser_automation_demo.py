@@ -69,30 +69,30 @@ async def main():
 
         # Demo 1: Navigate to Baidu
         print("\n📍 Demo 1: Navigate to Baidu")
-        response = await mas.execute(
-            "Navigate to http://www.baidu.com and tell me the page title"
-        )
+        response = await mas.chat_with_agent({
+            "query": "Navigate to http://www.baidu.com and tell me the page title"
+        })
         print(f"Response: {response.output}")
 
         # Demo 2: Extract content from Baidu
         print("\n📄 Demo 2: Extract content from Baidu")
-        response = await mas.execute(
-            "Go to http://www.baidu.com and extract the page title content"
-        )
+        response = await mas.chat_with_agent({
+            "query": "Go to http://www.baidu.com and extract the page title content"
+        })
         print(f"Response: {response.output}")
 
         # Demo 3: Get links from Baidu
         print("\n🔗 Demo 3: Get links from Baidu")
-        response = await mas.execute(
-            "Visit http://www.baidu.com and get the main navigation links"
-        )
+        response = await mas.chat_with_agent({
+            "query": "Visit http://www.baidu.com and get the main navigation links"
+        })
         print(f"Response: {response.output}")
 
         # Demo 4: Take a screenshot of Baidu
         print("\n📸 Demo 4: Take a screenshot of Baidu")
-        response = await mas.execute(
-            "Take a screenshot of http://www.baidu.com and save it as 'baidu_screenshot.png'"
-        )
+        response = await mas.chat_with_agent({
+            "query": "Take a screenshot of http://www.baidu.com and save it as 'baidu_screenshot.png'"
+        })
         print(f"Response: {response.output}")
 
         # Interactive browser automation
@@ -117,7 +117,7 @@ async def main():
 
             try:
                 print(f"🔄 Executing: {user_query}")
-                response = await mas.execute(user_query)
+                response = await mas.chat_with_agent({"query": user_query})
                 print(f"✅ Result: {response.output}")
             except Exception as e:
                 print(f"❌ Error: {e}")

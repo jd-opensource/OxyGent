@@ -83,13 +83,13 @@ async def main():
 
     async with MAS(oxy_space=oxy_space) as mas:
         # 网页导航
-        await mas.execute("Navigate to https://example.com")
+        await mas.chat_with_agent({"query": "Navigate to https://example.com"})
         
         # 内容提取  
-        await mas.execute("Extract content from https://example.com")
+        await mas.chat_with_agent({"query": "Extract content from https://example.com"})
         
         # 截图
-        await mas.execute("Take screenshot of https://example.com")
+        await mas.chat_with_agent({"query": "Take screenshot of https://example.com"})
 
 asyncio.run(main())
 ```

@@ -45,7 +45,7 @@ playwright install
 from oxygent import preset_tools
 
 # 在智能体中使用
-response = await agent.execute("Navigate to https://example.com")
+response = await mas.chat_with_agent({"query": "Navigate to https://example.com"})
 ```
 
 ### 2. extract_page_content - 内容提取
@@ -71,10 +71,10 @@ response = await agent.execute("Navigate to https://example.com")
 **使用示例：**
 ```python
 # 提取页面标题
-response = await agent.execute("Extract the title from https://example.com using selector 'h1'")
+response = await mas.chat_with_agent({"query": "Extract the title from https://example.com using selector 'h1'"})
 
 # 提取整个页面内容
-response = await agent.execute("Get all text content from https://example.com")
+response = await mas.chat_with_agent({"query": "Get all text content from https://example.com"})
 ```
 
 ### 3. take_screenshot - 网页截图
@@ -100,10 +100,10 @@ response = await agent.execute("Get all text content from https://example.com")
 **使用示例：**
 ```python
 # 截取可视区域
-response = await agent.execute("Take a screenshot of https://example.com and save as 'example.png'")
+response = await mas.chat_with_agent({"query": "Take a screenshot of https://example.com and save as 'example.png'"})
 
 # 截取整个页面
-response = await agent.execute("Take a full page screenshot of https://example.com")
+response = await mas.chat_with_agent({"query": "Take a full page screenshot of https://example.com"})
 ```
 
 ### 4. get_page_links - 链接提取
@@ -135,10 +135,10 @@ response = await agent.execute("Take a full page screenshot of https://example.c
 **使用示例：**
 ```python
 # 获取页面所有链接
-response = await agent.execute("Get all links from https://example.com")
+response = await mas.chat_with_agent({"query": "Get all links from https://example.com"})
 
 # 获取包括外部链接的所有链接
-response = await agent.execute("Get all links from https://example.com including external links")
+response = await mas.chat_with_agent({"query": "Get all links from https://example.com including external links"})
 ```
 
 ### 5. fill_form - 表单填写
@@ -181,10 +181,10 @@ response = await agent.execute("Get all links from https://example.com including
 ```python
 # 填写表单但不提交
 form_data = '{"input[name=\'username\']": "testuser", "input[name=\'email\']": "test@example.com"}'
-response = await agent.execute(f"Fill the form at https://example.com/form with data: {form_data}")
+response = await mas.chat_with_agent({"query": f"Fill the form at https://example.com/form with data: {form_data}"})
 
 # 填写并提交表单
-response = await agent.execute(f"Fill and submit the form at https://example.com/form with data: {form_data}")
+response = await mas.chat_with_agent({"query": f"Fill and submit the form at https://example.com/form with data: {form_data}"})
 ```
 
 ## 完整使用示例
@@ -232,7 +232,7 @@ async def browser_demo():
         
         for task in tasks:
             print(f"执行任务: {task}")
-            response = await mas.execute(task)
+            response = await mas.chat_with_agent({"query": task})
             print(f"结果: {response.output}\n")
 
 if __name__ == "__main__":
