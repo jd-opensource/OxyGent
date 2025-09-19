@@ -83,7 +83,7 @@ git clone https://github.com/jd-opensource/OxyGent.git
 cd OxyGent
 
 # Copy and configure environment variables
-cp env.example .env
+cp docker/env.example .env
 # Edit .env file with your LLM API keys
 
 # Start with Docker Compose
@@ -98,7 +98,7 @@ cp env.example .env
 - Web Interface: http://localhost:8080/web/index.html
 - API Documentation: http://localhost:8080/docs
 
-For detailed Docker deployment guide, see [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md).
+For detailed Docker deployment guide, see [docker/README.md](./docker/README.md).
 
 ### 📦 Manual Installation
 ### Step 1: Create and activate a python environment

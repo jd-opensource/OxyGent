@@ -80,7 +80,11 @@ check_docker() {
 check_env() {
     if [[ ! -f ".env" ]]; then
         warn ".env 文件不存在，将使用默认配置"
-        cat > .env << EOF
+        if [[ -f "./docker/env.example" ]]; then
+            cp ./docker/env.example .env
+            info "已从 ./docker/env.example 创建 .env 文件，请编辑后重新运行"
+        else
+            cat > .env << EOF
 # LLM 配置
 DEFAULT_LLM_API_KEY=your_api_key_here
 DEFAULT_LLM_BASE_URL=http://host.docker.internal:11434
@@ -89,6 +93,7 @@ DEFAULT_LLM_MODEL_NAME=llama2
 # 应用环境
 APP_ENV=docker
 EOF
+        fi
         info "已创建示例 .env 文件，请编辑后重新运行"
         exit 0
     fi
@@ -142,15 +147,15 @@ start_services() {
     # 选择 compose 文件
     case $mode in
         ecommerce)
-            compose_file="docker-compose.ecommerce.yml"
+            compose_file="./docker/docker-compose.ecommerce.yml"
             log "使用电商分布式部署模式"
             ;;
         distributed)
-            compose_file="docker-compose.distributed.yml"
+            compose_file="./docker/docker-compose.distributed.yml"
             log "使用分布式计算部署模式"
             ;;
         basic|*)
-            compose_file="docker-compose.yml"
+            compose_file="./docker/docker-compose.yml"
             log "使用基础部署模式"
             ;;
     esac

@@ -93,19 +93,19 @@ stop_services() {
     # 选择 compose 文件
     case $mode in
         ecommerce)
-            compose_files=("docker-compose.ecommerce.yml")
+            compose_files=("./docker/docker-compose.ecommerce.yml")
             log "停止电商分布式部署"
             ;;
         distributed)
-            compose_files=("docker-compose.distributed.yml")
+            compose_files=("./docker/docker-compose.distributed.yml")
             log "停止分布式计算部署"
             ;;
         all)
-            compose_files=("docker-compose.yml" "docker-compose.ecommerce.yml" "docker-compose.distributed.yml")
+            compose_files=("./docker/docker-compose.yml" "./docker/docker-compose.ecommerce.yml" "./docker/docker-compose.distributed.yml")
             log "停止所有部署"
             ;;
         basic|*)
-            compose_files=("docker-compose.yml")
+            compose_files=("./docker/docker-compose.yml")
             log "停止基础部署"
             ;;
     esac
@@ -171,7 +171,7 @@ stop_services() {
 show_status() {
     info "当前 Docker 服务状态:"
     
-    local compose_files=("docker-compose.yml" "docker-compose.ecommerce.yml" "docker-compose.distributed.yml")
+    local compose_files=("./docker/docker-compose.yml" "./docker/docker-compose.ecommerce.yml" "./docker/docker-compose.distributed.yml")
     local has_running=false
     
     for compose_file in "${compose_files[@]}"; do
