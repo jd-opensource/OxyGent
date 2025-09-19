@@ -55,7 +55,27 @@ class ChatAgent(LocalAgent):
                 short_memory_size=self.short_memory_size
             )
         }
+        
+        # Extract valid LLM parameters from request arguments
+        # Only include standard OpenAI API parameters, not the llm_params object itself
         llm_params = oxy_request.arguments.get("llm_params", dict())
-        arguments.update(llm_params)
+        valid_llm_params = {
+            k: v for k, v in llm_params.items() 
+            if k in {
+                "temperature", "max_tokens", "top_p", "frequency_penalty", 
+                "presence_penalty", "stop", "stream", "logit_bias", "user",
+                "seed", "tools", "tool_choice", "response_format"
+            }
+        }
+        arguments.update(valid_llm_params)
+        
+        # Also include any other direct API parameters (excluding llm_params itself)
+        for k, v in oxy_request.arguments.items():
+            if k not in {"messages", "query", "llm_params"} and k in {
+                "temperature", "max_tokens", "top_p", "frequency_penalty", 
+                "presence_penalty", "stop", "stream", "logit_bias", "user",
+                "seed", "tools", "tool_choice", "response_format"
+            }:
+                arguments[k] = v
 
         return await oxy_request.call(callee=self.llm_model, arguments=arguments)
