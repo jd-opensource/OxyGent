@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   oxygent:
-    build: .
+    build: ..
     ports:
       - "8080:8080"
     environment:
@@ -13,7 +13,7 @@ services:
     volumes:
       - ./cache_dir:/app/cache_dir
       - ./local_file:/app/local_file
-      - ./.env:/app/.env:ro
+      - ../.env:/app/.env:ro
     depends_on:
       redis:
         condition: service_healthy

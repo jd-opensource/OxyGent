@@ -1,209 +1,240 @@
 # OxyGent Docker 部署指南
 
-OxyGent 的 Docker 部署方案让您能够快速启动和体验多智能体系统，无需复杂的环境配置。
+本文档提供 OxyGent 的 Docker 容器化部署方案，支持一键启动完整的多智能体系统。
 
 ## 🚀 快速开始
 
-### 前提条件
-- Docker 20.10+
-- Docker Compose 2.0+
-- 至少 2GB 可用内存
+### 1. 环境准备
 
-### 三步启动
+确保您的系统已安装：
+- **Docker** (20.10+)
+- **Docker Compose** (2.0+)
 
-1. **复制环境配置**
-   ```bash
-   cp docker/env.example .env
-   ```
+### 2. 配置环境变量
 
-2. **配置 LLM 服务**
-   编辑 `.env` 文件，选择以下方式之一：
+```bash
+# 复制环境变量模板
+cp docker/env.example .env
 
-   **方式一: OpenAI API (推荐)**
-   ```bash
-   DEFAULT_LLM_API_KEY=your_openai_api_key_here
-   DEFAULT_LLM_BASE_URL=https://api.openai.com/v1
-   DEFAULT_LLM_MODEL_NAME=gpt-3.5-turbo
-   ```
+# 编辑 .env 文件，填入您的 LLM API 配置
+vim .env
+```
 
-   **方式二: 本地 Ollama (无需 API 密钥)**
-   ```bash
-   # 无需修改 .env，直接使用 --ollama 参数启动
-   ```
+### 3. 一键启动
 
-3. **启动服务**
-   ```bash
-   # 使用 API 方式
-   ./docker-start.sh
+```bash
+# 基础启动（需要 LLM API 密钥）
+./docker-start.sh
 
-   # 或使用本地 Ollama
-   ./docker-start.sh --ollama
-   ```
+# 使用本地 Ollama（无需 API 密钥）
+./docker-start.sh --ollama
 
-### 访问服务
+# 强制重新构建
+./docker-start.sh --build
 
-启动成功后，访问以下地址：
+# 启动并显示日志
+./docker-start.sh --logs
+```
+
+### 4. 访问服务
+
+启动成功后，您可以通过以下地址访问：
 
 - **🌐 Web 界面**: http://localhost:8080/web/index.html
 - **📚 API 文档**: http://localhost:8080/docs
 - **❤️ 健康检查**: http://localhost:8080/health
 
-## 📋 常用命令
+## 📖 详细配置
+
+### 环境变量配置
+
+在 `.env` 文件中配置以下变量：
 
 ```bash
-# 启动服务
-./docker-start.sh                # 使用 API
-./docker-start.sh --ollama        # 使用本地 Ollama
-./docker-start.sh --logs          # 启动并显示日志
-
-# 停止服务
-./docker-stop.sh                  # 停止服务
-./docker-stop.sh --cleanup        # 停止并清理资源
-
-# 查看状态
-./docker-stop.sh --status         # 查看运行状态
-docker-compose -f docker/docker-compose.yml ps  # 查看服务详情
-
-# 查看日志
-docker-compose -f docker/docker-compose.yml logs -f
+# LLM 服务配置（必需）
+DEFAULT_LLM_API_KEY=your_api_key_here
+DEFAULT_LLM_BASE_URL=https://api.openai.com/v1
+DEFAULT_LLM_MODEL_NAME=gpt-3.5-turbo
 ```
 
-## ⚙️ 配置说明
+### 支持的 LLM 服务
+
+#### 1. OpenAI API
+```bash
+DEFAULT_LLM_API_KEY=sk-xxx
+DEFAULT_LLM_BASE_URL=https://api.openai.com/v1
+DEFAULT_LLM_MODEL_NAME=gpt-3.5-turbo
+```
+
+#### 2. Moonshot Kimi API
+```bash
+DEFAULT_LLM_API_KEY=sk-xxx
+DEFAULT_LLM_BASE_URL=https://api.moonshot.cn/v1
+DEFAULT_LLM_MODEL_NAME=moonshot-v1-8k
+```
+
+#### 3. 本地 Ollama
+```bash
+# 启动时使用 --ollama 参数
+./docker-start.sh --ollama
+```
+
+## 🏗️ 架构说明
 
 ### 服务组件
 
-| 服务 | 端口 | 描述 |
-|------|------|------|
-| OxyGent | 8080 | 主应用服务 |
-| Redis | 6379 | 缓存服务 |
-| Elasticsearch | 9200 | 日志存储 |
-| Ollama | 11434 | 本地 LLM (可选) |
+- **oxygent**: 主应用服务 (端口 8080)
+- **redis**: 缓存服务 (端口 6379)
+- **elasticsearch**: 搜索引擎 (端口 9200)
+- **ollama**: 本地 LLM 服务 (端口 11434, 可选)
 
 ### 数据持久化
 
-数据存储在以下 Docker 卷中：
-- `redis_data`: Redis 数据
-- `elasticsearch_data`: 日志数据  
-- `ollama_data`: Ollama 模型数据
-- `./cache_dir`: 应用缓存
-- `./local_file`: 本地文件
+- `redis_data`: Redis 数据卷
+- `elasticsearch_data`: Elasticsearch 数据卷
+- `ollama_data`: Ollama 模型数据卷
+- `./cache_dir`: 应用缓存目录
+- `./local_file`: 本地文件目录
 
-## 🛠️ 故障排除
+## 🔧 管理命令
 
-### 常见问题
-
-1. **启动失败**
-   ```bash
-   # 查看详细日志
-   ./docker-start.sh --logs
-   
-   # 检查端口占用
-   lsof -i :8080
-   ```
-
-2. **LLM 连接失败**
-   - 检查 `.env` 文件中的 API 密钥
-   - 确认网络连接正常
-   - 尝试使用本地 Ollama: `./docker-start.sh --ollama`
-
-3. **内存不足**
-   ```bash
-   # 检查系统资源
-   docker system df
-   
-   # 清理未使用资源
-   docker system prune
-   ```
-
-4. **服务无响应**
-   ```bash
-   # 重启服务
-   ./docker-stop.sh
-   ./docker-start.sh
-   
-   # 检查健康状态
-   curl http://localhost:8080/health
-   ```
-
-### 重置和清理
+### 启动服务
 
 ```bash
-# 完全重置 (⚠️ 会丢失所有数据)
-./docker-stop.sh --cleanup
+# 基础启动
+./docker-start.sh
+
+# 使用 Ollama
+./docker-start.sh --ollama
 
 # 重新构建镜像
 ./docker-start.sh --build
-```
 
-## 🔧 高级配置
-
-### 自定义配置
-
-如需修改默认配置，可编辑 `docker/docker-compose.yml` 文件：
-
-- **端口映射**: 修改 `ports` 部分
-- **内存限制**: 添加 `deploy.resources` 配置
-- **环境变量**: 修改 `environment` 部分
-
-### 生产环境
-
-生产环境建议：
-
-1. **使用外部数据库**
-2. **配置 HTTPS**
-3. **设置资源限制**
-4. **配置监控告警**
-5. **定期备份数据**
-
-## 💡 使用技巧
-
-### 本地开发
-
-```bash
-# 开发模式 (实时查看日志)
+# 显示日志
 ./docker-start.sh --logs
-
-# 修改代码后重新构建
-./docker-start.sh --build
 ```
 
-### 性能调优
-
-- **内存**: 确保至少 2GB 可用内存
-- **存储**: SSD 硬盘可提升性能
-- **网络**: 良好的网络连接对 API 调用很重要
-
-### 数据管理
+### 停止服务
 
 ```bash
-# 备份重要数据
-docker cp oxygent_oxygent_1:/app/cache_dir ./backup_cache
-docker cp oxygent_oxygent_1:/app/local_file ./backup_files
+# 停止服务
+./docker-stop.sh
 
-# 查看数据使用情况
-docker system df -v
+# 停止并删除数据卷（⚠️ 会丢失数据）
+./docker-stop.sh --remove-volumes
+
+# 完全清理
+./docker-stop.sh --cleanup
 ```
 
-## 📞 获取帮助
+### 查看状态
 
-遇到问题时：
+```bash
+# 查看服务状态
+./docker-stop.sh --status
 
-1. 查看 [常见问题](#常见问题) 部分
-2. 检查项目 [Issues](https://github.com/jd-opensource/OxyGent/issues)
-3. 提交新 Issue 时请包含：
-   - 错误日志
-   - 环境信息
-   - 复现步骤
+# 查看日志
+docker compose -f ./docker/docker-compose.yml logs -f
+```
 
-## 🎯 下一步
+## 🐛 故障排除
 
-成功启动后，您可以：
+### 常见问题
 
-1. **探索 Web 界面** - 体验多智能体对话
-2. **查看 API 文档** - 了解编程接口
-3. **阅读项目文档** - 深入学习 OxyGent
-4. **尝试自定义** - 添加您自己的智能体
+#### 1. API 速率限制错误 (429)
 
----
+**问题**: `429 Too Many Requests` 错误
 
-**快速体验 OxyGent 的强大功能，开启您的多智能体之旅！** 🚀
+**解决方案**:
+- 检查您的 API 配额和速率限制
+- 使用较小的模型（如 `moonshot-v1-8k` 而不是 `moonshot-v1-128k`）
+- 等待速率限制重置后重试
+- 考虑使用本地 Ollama: `./docker-start.sh --ollama`
+
+#### 2. 环境变量未生效
+
+**问题**: 容器内环境变量为空
+
+**解决方案**:
+```bash
+# 确保 .env 文件在项目根目录
+ls -la .env
+
+# 重新启动服务
+./docker-stop.sh && ./docker-start.sh
+```
+
+#### 3. 端口冲突
+
+**问题**: 端口已被占用
+
+**解决方案**:
+```bash
+# 检查端口占用
+lsof -i :8080
+
+# 修改 docker-compose.yml 中的端口映射
+```
+
+#### 4. Docker Compose 命令不兼容
+
+**问题**: `docker-compose: command not found`
+
+**解决方案**: 脚本已自动兼容新旧版本的 Docker Compose 命令。
+
+### 查看详细日志
+
+```bash
+# 查看所有服务日志
+docker compose -f ./docker/docker-compose.yml logs
+
+# 查看特定服务日志
+docker compose -f ./docker/docker-compose.yml logs oxygent
+
+# 实时日志
+docker compose -f ./docker/docker-compose.yml logs -f
+```
+
+## 🔒 安全注意事项
+
+1. **API 密钥安全**: `.env` 文件包含敏感信息，不要提交到版本控制系统
+2. **网络安全**: 生产环境中请配置防火墙和访问控制
+3. **数据备份**: 定期备份重要数据卷
+
+## 📊 性能优化
+
+### 资源配置
+
+根据您的使用场景调整资源限制：
+
+```yaml
+# docker-compose.yml
+services:
+  oxygent:
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+```
+
+### API 配额管理
+
+对于免费 API 账户：
+- 控制请求频率
+- 使用较小的模型
+- 考虑本地 LLM 方案
+
+## 🤝 贡献
+
+如果您遇到问题或有改进建议，欢迎：
+1. 提交 Issue
+2. 创建 Pull Request
+3. 参与讨论
+
+## 📝 更新日志
+
+- **v1.0.0**: 初始 Docker 部署方案
+- 支持多种 LLM 服务
+- 自动化启停脚本
+- 完整的故障排除指南

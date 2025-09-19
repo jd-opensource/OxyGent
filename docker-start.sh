@@ -66,6 +66,13 @@ check_docker() {
         error "Docker Compose 未安装，请先安装 Docker Compose"
         exit 1
     fi
+    
+    # 检查使用哪个 compose 命令
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        COMPOSE_CMD="docker compose"
+    fi
 
     if ! docker info &> /dev/null; then
         error "Docker 服务未运行，请启动 Docker"
@@ -152,7 +159,7 @@ start_services() {
     fi
 
     # 构建命令
-    local cmd="docker-compose -f $compose_file $profiles up -d $build_flag"
+    local cmd="$COMPOSE_CMD -f $compose_file $profiles up -d $build_flag"
     
     log "启动服务: $cmd"
     eval $cmd
@@ -163,7 +170,7 @@ start_services() {
 
     # 检查服务状态
     info "服务状态:"
-    docker-compose -f $compose_file ps
+    $COMPOSE_CMD -f $compose_file ps
 
     # 显示访问信息
     show_access_info
@@ -171,7 +178,7 @@ start_services() {
     # 显示日志
     if [[ "$logs_flag" == true ]]; then
         log "显示服务日志 (Ctrl+C 退出):"
-        docker-compose -f $compose_file logs -f
+        $COMPOSE_CMD -f $compose_file logs -f
     fi
 }
 
@@ -190,7 +197,7 @@ show_access_info() {
     info "支持服务:"
     info "  📊 Redis: localhost:6379"
     info "  🔍 Elasticsearch: http://localhost:9200"
-    if docker-compose -f "./docker/docker-compose.yml" ps | grep -q ollama; then
+    if $COMPOSE_CMD -f "./docker/docker-compose.yml" ps | grep -q ollama; then
         info "  🤖 Ollama: http://localhost:11434"
     fi
     

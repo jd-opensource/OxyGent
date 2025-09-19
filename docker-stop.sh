@@ -83,27 +83,34 @@ stop_services() {
 
     log "停止 OxyGent 服务"
 
+    # 检查使用哪个 compose 命令
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        COMPOSE_CMD="docker compose"
+    fi
+
     # 检查并停止服务
     if [[ -f "$compose_file" ]]; then
         # 显示当前运行的服务
-        if docker-compose -f "$compose_file" ps -q | grep -q .; then
+        if $COMPOSE_CMD -f "$compose_file" ps -q | grep -q .; then
             info "当前运行的服务:"
-            docker-compose -f "$compose_file" ps
+            $COMPOSE_CMD -f "$compose_file" ps
             
             # 停止服务
             log "停止服务..."
-            docker-compose -f "$compose_file" down
+            $COMPOSE_CMD -f "$compose_file" down
             
             # 删除数据卷
             if [[ "$remove_volumes" == true ]]; then
                 warn "删除数据卷 (数据将丢失)..."
-                docker-compose -f "$compose_file" down -v
+                $COMPOSE_CMD -f "$compose_file" down -v
             fi
             
             # 删除镜像
             if [[ "$remove_images" == true ]]; then
                 info "删除相关镜像..."
-                docker-compose -f "$compose_file" down --rmi all
+                $COMPOSE_CMD -f "$compose_file" down --rmi all
             fi
         else
             info "没有运行的 OxyGent 服务"
@@ -142,10 +149,17 @@ show_status() {
     
     local compose_file="./docker/docker-compose.yml"
     
+    # 检查使用哪个 compose 命令
+    if command -v docker-compose &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        COMPOSE_CMD="docker compose"
+    fi
+
     if [[ -f "$compose_file" ]]; then
-        if docker-compose -f "$compose_file" ps -q | grep -q .; then
+        if $COMPOSE_CMD -f "$compose_file" ps -q | grep -q .; then
             echo
-            docker-compose -f "$compose_file" ps
+            $COMPOSE_CMD -f "$compose_file" ps
         else
             info "没有运行的 OxyGent 服务"
         fi
