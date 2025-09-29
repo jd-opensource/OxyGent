@@ -20,7 +20,7 @@ from typing import Any, List, Optional, Union
 from pydantic import BaseModel, Field
 
 from ..config import Config
-from ..utils.common_utils import generate_uuid
+from ..utils.common_utils import generate_uuid, is_image
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +95,7 @@ class OxyRequest(BaseModel):
     node_id: Optional[str] = Field("", description="")
 
     is_save_history: bool = Field(True, description="whether history is saved")
+    is_async_storage: bool = Field(True, description="whether async storage is used")
 
     parallel_id: Optional[str] = Field("", description="")
     parallel_dict: Optional[dict] = Field(default_factory=dict, description="")
@@ -365,39 +366,20 @@ class OxyRequest(BaseModel):
             self.arguments["query"] = query
 
     def get_query(self, master_level=False):
+        md_attachments = []
+        for i, attachment in enumerate(self.arguments.get("attachments", [])):
+            if attachment.startswith("../static/"):
+                attachment = f"{Config.get_cache_save_dir()}/uploads{attachment[9:]}"
+            is_image_flag = "!" if is_image(attachment) else ""
+            md_attachments.append(f"{is_image_flag}[file {i + 1}]({attachment})")
+        attachments_str = "\n".join(md_attachments)
+        if attachments_str:
+            attachments_str += " "
+
         if master_level:
-            return self.shared_data.get("query", "")
+            return attachments_str + self.shared_data.get("query", "")
         else:
-            return self.arguments.get("query", "")
-
-    def get_query_parts(self, master_level: bool = False) -> list:
-        """
-        Return the query as an **ordered parts list**.
-
-        - query: list[dict] -> hold
-        - query: dict -> list[dict]
-        - query: str ->
-          {"part":{"content_type":"text/plain","data":<text>}}
-        """
-        q = self.get_query(master_level)
-        if isinstance(q, list):
-            return q
-        if isinstance(q, dict):
-            return [q]
-        return [
-            {
-                "part": {
-                    "content_type": "text/plain",
-                    "data": q if q is not None else "",
-                }
-            }
-        ]
-
-    def set_query_parts(self, parts: list, master_level: bool = False):
-        """
-        Convenience wrapper:  A2A-style parts -> query。
-        """
-        self.set_query(parts, master_level)
+            return attachments_str + self.arguments.get("query", "")
 
     def has_short_memory(self, master_level=False):
         var_short_memory = "master_short_memory" if master_level else "short_memory"

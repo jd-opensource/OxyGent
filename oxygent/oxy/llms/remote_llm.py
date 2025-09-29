@@ -24,6 +24,7 @@ class RemoteLLM(BaseLLM):
     model_name: Optional[str] = Field("")
     headers: Dict[str, str] | Callable[[OxyRequest], Dict[str, str]] = Field(
         default=lambda oxy_request: {},
+        exclude=True,
         description="Extra HTTP headers or a function that returns headers",
     )
 

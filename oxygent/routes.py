@@ -67,13 +67,12 @@ def check_alive():
 
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
-    # Generate the unique file name
-
     upload_dir = os.path.join(Config.get_cache_save_dir(), "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
     file_name = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
     file_path = os.path.join(upload_dir, file_name)
+    pic_url = f"../static/{file_name}"
 
     # Save file asynchronously
     async with aiofiles.open(file_path, "wb") as f:
@@ -81,7 +80,7 @@ async def upload_file(file: UploadFile = File(...)):
         await f.write(content)
 
     # Return file path
-    return WebResponse(data={"file_name": file_name}).to_dict()
+    return WebResponse(data={"file_name": pic_url}).to_dict()
 
 
 @router.get("/node")

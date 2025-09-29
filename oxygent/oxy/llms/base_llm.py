@@ -5,7 +5,6 @@ system. It handles multimodal input processing, think message extraction, and pr
 consistent interface for different LLM providers.
 """
 
-import copy
 import json
 import logging
 from typing import Optional
@@ -16,8 +15,8 @@ from ...config import Config
 from ...schemas import OxyRequest, OxyResponse
 from ...utils.common_utils import (
     extract_first_json,
-    file_to_base64,
     image_to_base64,
+    parse_mixed_string,
     video_to_base64,
 )
 from ..base_oxy import Oxy
@@ -79,28 +78,57 @@ class BaseLLM(Oxy):
     )
 
     async def _get_messages(self, oxy_request: OxyRequest):
-        """Preprocess messages for multimoding input."""
-        # ---------- if "messages" ----------
-        if "messages" not in oxy_request.arguments:
-            query_val = oxy_request.arguments.get("query", "")
-            # A2A-style parts -> content, otherwise -> str
-            if isinstance(query_val, list):
-                content_field = query_val
-            elif isinstance(query_val, dict):
-                content_field = [query_val]
-            else:
-                content_field = str(query_val)
-            oxy_request.arguments["messages"] = [
-                {"role": "user", "content": content_field}
-            ]
+        # Preprocess messages for multimoding input
+        messages_processed = []
+        for message in oxy_request.arguments["messages"]:
+            role, content = message["role"], message["content"]
+            if role == "user":
+                # 获取每一项
+                items = parse_mixed_string(content)
+                # 读取文件
+                index_of_doc_url = [
+                    i for i, item in enumerate(items) if item["type"] == "doc_url"
+                ]
+                for i in index_of_doc_url:
+                    item = items[i]
+                    with open(item["link"]) as f:
+                        doc_content = f.read()
+                        items[i] = {
+                            "type": "text",
+                            "content": f"The content of the `{item['desc']}` is: {doc_content} --- ",
+                        }
+                # 判断是否是纯文本
+                is_pure_text = all([item["type"] == "text" for item in items])
+                # 直接拼接
+                if is_pure_text or not self.is_multimodal_supported:
+                    content = "".join([item["content"] for item in items])
+                else:
+                    content = []
+                    for item in items:
+                        item_type = item["type"]
+                        if item_type == "text":
+                            content.append(
+                                {"type": item_type, item_type: item["content"]}
+                            )
+                        elif item_type in ["image_url", "video_url"]:
+                            content.append(
+                                {
+                                    "type": "text",
+                                    "text": f"The content of the `{item['desc']}` is: ",
+                                }
+                            )
+                            content.append(
+                                {"type": item_type, item_type: {"url": item["link"]}}
+                            )
+                        else:
+                            pass
+            messages_processed.append({"role": role, "content": content})
 
         # hold url
         if not self.is_convert_url_to_base64:
-            return oxy_request.arguments["messages"]
+            return messages_processed
 
         # convert url into base_64 data
-        messages_processed = copy.deepcopy(oxy_request.arguments["messages"])
-
         for message in messages_processed:
             if not isinstance(message.get("content"), list):
                 continue
@@ -118,25 +146,6 @@ class BaseLLM(Oxy):
                     item[item_type]["url"] = await video_to_base64(
                         item[item_type]["url"], self.max_video_size
                     )
-                elif item_type in {
-                    "table_file",
-                    "doc_file",
-                    "pdf_file",
-                    "code_file",
-                    "file",
-                }:
-                    try:
-                        item[item_type]["url"] = await file_to_base64(
-                            item[item_type]["url"], self.max_file_size_bytes
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            f"Failed to base64-embed {item_type}: {e}",
-                            extra={
-                                "trace_id": oxy_request.current_trace_id,
-                                "node_id": oxy_request.node_id,
-                            },
-                        )
                 else:
                     logger.warning(
                         f"Unexpected content type: {item_type}",

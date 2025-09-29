@@ -142,8 +142,6 @@ async def table_to_base64(source: str, max_table_size: int = 50 * 1024 * 1024) -
             f"Table file size ({len(table_bytes)} bytes) exceeds maximum allowed size ({max_table_size} bytes)"
         )
 
-    import os
-
     file_ext = os.path.splitext(source.lower())[1]
     mime_type_map = {
         ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -176,7 +174,6 @@ def validate_table_file(file_path: str) -> bool:
 
 def get_table_file_info(file_path: str) -> dict:
     """Get basic information about a table file."""
-    import os
 
     if not os.path.exists(file_path) and not file_path.startswith("http"):
         return {"error": "File not found"}
@@ -281,88 +278,105 @@ def to_json(obj):
     return json.dumps(obj, ensure_ascii=False, default=str)
 
 
-def process_attachments(attachments):
-    query_attachments = []
-
-    image_exts = (".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff")
-    video_exts = (".mp4", ".avi", ".mov", ".wmv", ".flv", ".webm", ".mkv")
-    table_exts = (".xlsx", ".xls", ".csv", ".tsv", ".ods")
-    doc_exts = (".doc", ".docx")
-    pdf_exts = (".pdf",)
-    code_exts = (".py", ".md", ".json", ".txt")
-
-    for attachment in attachments:
-        if not (attachment.startswith("http") or os.path.exists(attachment)):
-            logger.warning(f"Attachment file not found: {attachment}")
-            continue
-
-        ext = os.path.splitext(attachment.lower())[1]
-
-        if ext in image_exts:
-            query_attachments.append(
-                {"type": "image_url", "image_url": {"url": attachment}}
-            )
-        elif ext in video_exts:
-            query_attachments.append(
-                {"type": "video_url", "video_url": {"url": attachment}}
-            )
-        elif ext in table_exts:
-            query_attachments.append(
-                {
-                    "type": "table_file",
-                    "table_file": {"url": attachment, "format": ext.lstrip(".")},
-                }
-            )
-        elif ext in doc_exts:
-            query_attachments.append(
-                {
-                    "type": "doc_file",
-                    "doc_file": {"url": attachment, "format": ext.lstrip(".")},
-                }
-            )
-        elif ext in pdf_exts:
-            query_attachments.append(
-                {"type": "pdf_file", "pdf_file": {"url": attachment, "format": "pdf"}}
-            )
-        elif ext in code_exts:
-            query_attachments.append(
-                {
-                    "type": "code_file",
-                    "code_file": {"url": attachment, "format": ext.lstrip(".")},
-                }
-            )
-        else:
-            # fallback
-            query_attachments.append(
-                {"type": "file", "file": {"url": attachment, "format": ext.lstrip(".")}}
-            )
-
-    return query_attachments
-
-
-def _compose_query_parts(original_query, attachments):
-    """
-    <string | list | dict> + attachments:list[str] -> A2A-style parts
-    """
-    parts = []
-
-    # add attachments
-    for p in attachments:
-        ctype = "url" if p.startswith(("http://", "https://")) else "path"
-        parts.append({"part": {"content_type": ctype, "data": p}})
-
-    # sort query
-    if isinstance(original_query, list):
-        parts.extend(original_query)
-    elif isinstance(original_query, dict):
-        parts.append(original_query)
-    else:  # fallback : query = ""
-        parts.append(
-            {"part": {"content_type": "text/plain", "data": str(original_query)}}
-        )
-
-    return parts
-
-
 def generate_uuid(length=16):
     return shortuuid.ShortUUID().random(length=length)
+
+
+def is_image(source):
+    exts = ("png", "jpg", "jpeg", "gif", "svg", "bmp", "webp", "tiff")
+    return source.split(".")[-1] in exts
+
+
+def parse_mixed_string(s):
+    if not isinstance(s, str):
+        return s
+
+    url_to_ext = {
+        "image_url": ("png", "jpg", "jpeg", "gif", "svg", "bmp", "webp", "tiff"),
+        "video_url": ("mp4", "avi", "mov", "wmv", "flv", "webm", "mkv"),
+    }
+    ext_to_url = {ext: k for k, exts in url_to_ext.items() for ext in exts}
+
+    # 正则匹配 ![描述](链接) 或 ![](链接)
+    pattern = re.compile(r"(!)?\[([^\]]*)\]\(([^)]+)\)")
+    results = []
+    last_end = 0
+
+    for match in pattern.finditer(s):
+        start, end = match.span()
+        # 先处理前面的文本
+        if start > last_end:
+            text = s[last_end:start]
+            if text:
+                results.append({"type": "text", "content": text})
+        # 处理文件
+        is_image = match.group(1)
+        desc = match.group(2)
+        link = match.group(3)
+        content_type = ext_to_url.get(link.split(".")[-1], "doc_url")
+        results.append(
+            {
+                "type": content_type,
+                "content": f"{'!' if is_image else ''}[{desc}]({link})",
+                "desc": desc,
+                "link": link,
+            }
+        )
+        last_end = end
+
+    # 处理最后的文本
+    if last_end < len(s):
+        text = s[last_end:]
+        if text:
+            results.append({"type": "text", "content": text})
+
+    return results
+
+
+def parse_mixed_string0(s):
+    if not isinstance(s, str):
+        return s
+
+    url_to_ext = {
+        "image_url": ("png", "jpg", "jpeg", "gif", "svg", "bmp", "webp", "tiff"),
+        "video_url": ("mp4", "avi", "mov", "wmv", "flv", "webm", "mkv"),
+    }
+    ext_to_url = {ext: k for k, exts in url_to_ext.items() for ext in exts}
+
+    # 正则匹配 ![描述](链接) 或 ![](链接)
+    pattern = re.compile(r"!?\[([^\]]*)\]\(([^)]+)\)")
+    results = []
+    last_end = 0
+
+    for match in pattern.finditer(s):
+        start, end = match.span()
+        # 先处理前面的文本
+        if start > last_end:
+            text = s[last_end:start]
+            if text:
+                results.append({"type": "text", "text": text})
+        # 处理文件
+        desc = match.group(1)
+        if desc:
+            results.append({"type": "text", "text": f"the {desc} is: "})
+        link = match.group(2)
+        content_type = ext_to_url.get(link.split(".")[-1], "doc_url")
+        if content_type in url_to_ext:
+            results.append({"type": content_type, content_type: {"url": link}})
+        else:
+            # TODO: 处理其他类型的文件
+            with open(link) as f:
+                results.append({"type": "text", "text": f.read()})
+        last_end = end
+
+    # 如果没有匹配到，则直接返回原始字符串
+    if last_end == 0:
+        return [{"type": "text", "text": s}]
+
+    # 处理最后的文本
+    if last_end < len(s):
+        text = s[last_end:]
+        if text:
+            results.append({"type": "text", "text": text})
+
+    return results
