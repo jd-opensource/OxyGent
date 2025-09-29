@@ -492,7 +492,7 @@ class ChromeDevToolsDemo:
 
     async def run_demo(
         self,
-        query: str = "访问B站，告诉我近期的10条“综合热门视频”",
+        query: str = "我已经登录了B站，从B站首页开始，进入个人中心后，获取我的“追番”列表",
     ):
         """Run the Chrome DevTools demo with the specified query."""
         try:
