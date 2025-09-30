@@ -572,28 +572,19 @@ def chrome_devtools_evaluate_script(function: str, args: Optional[List[Dict[str,
     执行 JavaScript 脚本
     
     Args:
-        function (str): 要执行的 JavaScript 函数或表达式
+        function (str): 要执行的 JavaScript 脚本（纯文本形式）
         args (Optional[List[Dict[str, str]]]): 函数参数列表
     
     Returns:
         Dict[str, Any]: 包含执行结果的字典
     """
-    # 对于脚本执行，我们提供两种方式：
-    # 1. 通过MCP工具调用（推荐）
-    # 2. 直接执行（备用方案）
-    
-    # 首先尝试通过MCP工具调用
-    mcp_result = _chrome_devtools_client.call_mcp_tool("evaluate_script", {
+    # 只通过 chrome_devtools_mcp 中对应的 evaluate_script 来执行 JavaScript
+    # 不使用其他兜底或回退方式
+    # 以纯文本形式提供待执行脚本
+    return _chrome_devtools_client.call_mcp_tool("evaluate_script", {
         "function": function,
         "args": args or []
     })
-    
-    # 如果MCP调用失败，尝试直接执行
-    if mcp_result.get("status") == "error":
-        logger.info("MCP工具调用失败，尝试直接执行脚本")
-        return _chrome_devtools_client.execute_javascript(function)
-    
-    return mcp_result
 
 
 def chrome_devtools_performance_start_trace(reload: bool = False, auto_stop: bool = True) -> Dict[str, Any]:

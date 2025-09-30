@@ -871,6 +871,7 @@ class MAS(BaseModel):
             app.mount("/web", StaticFiles(directory=str(web_path)), name="web")
 
         upload_dir = os.path.join(Config.get_cache_save_dir(), "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
         app.mount("/static", StaticFiles(directory=upload_dir), name="static")
 
         """

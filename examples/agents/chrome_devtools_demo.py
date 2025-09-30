@@ -245,11 +245,26 @@ Important instructions for Chrome DevTools operations:
 }
 ```
 
-6. Common Operation Patterns:
+6. JavaScript Script Execution Guidelines:
+   - When using evaluate_script tool, the 'function' parameter MUST be provided as a JavaScript function (not just an expression)
+   - Do NOT wrap the JavaScript code in additional quotes or escape characters
+   - The JavaScript code MUST be formatted as an executable function, never as a bare expression
+   - CORRECT usage: function: "function() { return document.querySelector('.header-entry-mini'); }"
+   - CORRECT usage: function: "function() { return document.querySelectorAll('.bangumi-item').length; }"
+   - CORRECT usage: function: "() => document.querySelector('.bangumi-item').textContent"
+   - CORRECT usage: function: "function() { return document.title; }"
+   - WRONG usage: function: "document.querySelector('.header-entry-mini')" (this is just an expression, not a function)
+   - WRONG usage: function: "document.title" (this is just an expression, not a function)
+   - For complex operations: function: "function() { /* your code here */ return result; }"
+   - Always wrap your JavaScript logic inside a function that returns the desired value
+   - The function will be called by the evaluate_script tool, so it must be a valid function definition
+
+7. Common Operation Patterns:
    - For page navigation: list_pages → select_page → navigate_page → take_snapshot
    - For form filling: take_snapshot → identify elements → fill_form → take_screenshot
-   - For data extraction: take_snapshot → evaluate_script → process results
+   - For data extraction: take_snapshot → evaluate_script (with function format) → process results
    - For performance analysis: performance_start_trace → perform actions → performance_stop_trace
+   - For JavaScript execution: take_snapshot → evaluate_script (MUST use function format) → process results
 
 After receiving tool response:
 1. Transform the raw data into a natural conversational response
@@ -492,7 +507,7 @@ class ChromeDevToolsDemo:
 
     async def run_demo(
         self,
-        query: str = "我已经登录了B站，从B站首页开始，进入个人中心后，获取我的“追番”列表",
+        query: str = "我已经登录了B站，1、导航到B站首页，2、查找元素（class：.header-entry-mini）然后点击该元素，注意不需要查找元素uid，3、等待进入新页面，4、获取“订阅追番”列表",
     ):
         """Run the Chrome DevTools demo with the specified query."""
         try:
