@@ -60,11 +60,11 @@ OxyGent致力于为每一位用户和开发者提供开放的智能体系统体�
 ```
 + 运行单元测试:
 ```bash
-    pytest oxygent/test/unittest
+    pytest test/unittest
 ```
 + 运行样例综合测试（可选）:
 ```bash
-    pytest oxygent/test/integration
+    pytest test/integration
 ```
 在pr提交之后，我们会对代码进行格式化及进一步测试。
 我们的测试目前还很不完善，因此欢迎开发者为测试作出贡献！
