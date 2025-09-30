@@ -138,98 +138,98 @@ class ReActAgent(LocalAgent):
             Memory: Processed conversation history optimized for context.
         """
         short_memory = Memory()
-        if oxy_request.from_trace_id:
-            if is_get_user_master_session:
-                session_name = "__".join(oxy_request.call_stack[:2])
-            else:
-                session_name = oxy_request.session_name
-            es_response = await self.mas.es_client.search(
-                Config.get_app_name() + "_history",
-                {
-                    "query": {
-                        "bool": {
-                            "must": [
-                                {"terms": {"trace_id": oxy_request.root_trace_ids}},
-                                {"term": {"session_name": session_name}},
-                            ]
-                        }
-                    },
-                    "size": self.short_memory_size,
-                    "sort": [{"create_time": {"order": "desc"}}],
+        if is_get_user_master_session:
+            session_name = "__".join(oxy_request.call_stack[:2])
+        else:
+            session_name = oxy_request.session_name
+        es_response = await self.mas.es_client.search(
+            Config.get_app_name() + "_history",
+            {
+                "query": {
+                    "bool": {
+                        "must": [
+                            {
+                                "terms": {
+                                    "trace_id": oxy_request.root_trace_ids
+                                    + [oxy_request.current_trace_id]
+                                }
+                            },
+                            {"term": {"session_name": session_name}},
+                        ]
+                    }
                 },
-            )
-            historys = es_response["hits"]["hits"][::-1]
-            if self.is_discard_react_memory:
-                # Simple mode: Only keep query-answer pairs
-                for history in historys:
-                    memory = json.loads(history["_source"]["memory"])
-                    short_memory.add_message(Message.user_message(memory["query"]))
-                    short_memory.add_message(
-                        Message.assistant_message(memory["answer"])
-                    )
-            else:
-                # Advanced mode: Weighted memory management with token limits
-                # Collect all question-answer pairs from both short and ReAct memory
-                qa_list = []
-                for short_i, history in enumerate(historys):
-                    memory = json.loads(history["_source"]["memory"])
+                "size": self.short_memory_size,
+                "sort": [{"create_time": {"order": "desc"}}],
+            },
+        )
+        historys = es_response["hits"]["hits"][::-1]
+        if self.is_discard_react_memory:
+            # Simple mode: Only keep query-answer pairs
+            for history in historys:
+                memory = json.loads(history["_source"]["memory"])
+                short_memory.add_message(Message.user_message(memory["query"]))
+                short_memory.add_message(Message.assistant_message(memory["answer"]))
+        else:
+            # Advanced mode: Weighted memory management with token limits
+            # Collect all question-answer pairs from both short and ReAct memory
+            qa_list = []
+            for short_i, history in enumerate(historys):
+                memory = json.loads(history["_source"]["memory"])
+                qa_list.append((memory["query"], memory["answer"], short_i, "short"))
+                for react_q, react_a in chunk_list(memory["react_memory"]):
                     qa_list.append(
-                        (memory["query"], memory["answer"], short_i, "short")
+                        (react_q["content"], react_a["content"], short_i, "react")
                     )
-                    for react_q, react_a in chunk_list(memory["react_memory"]):
-                        qa_list.append(
-                            (react_q["content"], react_a["content"], short_i, "react")
+
+            # Calculate weighted scores for each QA pair
+            scores = []
+            for i, (q, a, short_i, memory_type) in enumerate(qa_list):
+                weight = (
+                    self.weight_short_memory
+                    if memory_type == "short"
+                    else self.weight_react_memory
+                )
+                scores.append(self.func_map_memory_order(i + 1) * weight)
+
+            # Sort indices by score (highest first) for priority selection
+            sorted_scores = [
+                index
+                for index, _ in sorted(
+                    enumerate(scores), key=lambda x: x[1], reverse=True
+                )
+            ]
+
+            # Apply token-based filtering to stay within limits
+            count_token = 0
+            retained_index = set()
+            for index in sorted_scores:
+                q, a, short_i, memory_type = qa_list[index]
+                count_token += len(q)
+                count_token += len(a)
+                if count_token > self.memory_max_tokens:
+                    break
+                retained_index.add(index)
+
+            # Reconstruct memory maintaining conversation flow
+            short_a_message = None
+            for i, (q, a, short_i, memory_type) in enumerate(qa_list):
+                if i not in retained_index:
+                    continue
+                if memory_type == "short":
+                    if short_a_message:
+                        short_memory.add_message(
+                            Message.assistant_message(short_a_message)
                         )
-
-                # Calculate weighted scores for each QA pair
-                scores = []
-                for i, (q, a, short_i, memory_type) in enumerate(qa_list):
-                    weight = (
-                        self.weight_short_memory
-                        if memory_type == "short"
-                        else self.weight_react_memory
-                    )
-                    scores.append(self.func_map_memory_order(i + 1) * weight)
-
-                # Sort indices by score (highest first) for priority selection
-                sorted_scores = [
-                    index
-                    for index, _ in sorted(
-                        enumerate(scores), key=lambda x: x[1], reverse=True
-                    )
-                ]
-
-                # Apply token-based filtering to stay within limits
-                count_token = 0
-                retained_index = set()
-                for index in sorted_scores:
-                    q, a, short_i, memory_type = qa_list[index]
-                    count_token += len(q)
-                    count_token += len(a)
-                    if count_token > self.memory_max_tokens:
-                        break
-                    retained_index.add(index)
-
-                # Reconstruct memory maintaining conversation flow
-                short_a_message = None
-                for i, (q, a, short_i, memory_type) in enumerate(qa_list):
-                    if i not in retained_index:
+                        short_a_message = None
+                    short_memory.add_message(Message.user_message(q))
+                    short_a_message = a
+                else:
+                    if short_a_message is None:
                         continue
-                    if memory_type == "short":
-                        if short_a_message:
-                            short_memory.add_message(
-                                Message.assistant_message(short_a_message)
-                            )
-                            short_a_message = None
-                        short_memory.add_message(Message.user_message(q))
-                        short_a_message = a
-                    else:
-                        if short_a_message is None:
-                            continue
-                        short_memory.add_message(Message.assistant_message(q))
-                        short_memory.add_message(Message.user_message(a))
-                if short_a_message:
-                    short_memory.add_message(Message.assistant_message(short_a_message))
+                    short_memory.add_message(Message.assistant_message(q))
+                    short_memory.add_message(Message.user_message(a))
+            if short_a_message:
+                short_memory.add_message(Message.assistant_message(short_a_message))
         return short_memory
 
     def _parse_llm_response(
@@ -334,13 +334,8 @@ class ReActAgent(LocalAgent):
             temp_memory.add_messages(
                 Message.dict_list_to_messages(oxy_request.get_short_memory())
             )
-            raw_query = oxy_request.arguments.get("query", "")
-            if self.is_multimodal_supported and isinstance(raw_query, list):
-                user_query_content = raw_query
-            else:
-                user_query_content = _plain_text(raw_query)
             # Add current query and ReAct history
-            temp_memory.add_message(Message.user_message(user_query_content))
+            temp_memory.add_message(Message.user_message(oxy_request.get_query()))
             temp_memory.add_messages(react_memory.messages)
 
             full_memory = temp_memory.to_dict_list()
@@ -401,9 +396,7 @@ class ReActAgent(LocalAgent):
                         "trust_mode" in llm_response.output
                         and llm_response.output["trust_mode"] == 1
                     ):
-                        result_payload = observation.to_content(
-                            self.is_multimodal_supported
-                        )
+                        result_payload = observation.to_str()
                         return OxyResponse(
                             state=OxyState.COMPLETED,
                             output=result_payload,
@@ -414,11 +407,7 @@ class ReActAgent(LocalAgent):
                 react_memory.add_message(
                     Message.assistant_message(llm_response.ori_response)
                 )
-                react_memory.add_message(
-                    Message.user_message(
-                        observation.to_content(self.is_multimodal_supported)
-                    )
-                )
+                react_memory.add_message(Message.user_message(observation.to_str()))
             else:
                 # Parsing error - add to memory for correction
                 logger.info(
@@ -445,7 +434,7 @@ class ReActAgent(LocalAgent):
         tool_call_results = "\n\n".join(tool_call_results)
 
         # Generate final answer based on accumulated results
-        user_input_text = _plain_text(raw_query)  # query -> str
+        user_input_text = _plain_text(oxy_request.get_query())  # query -> str
         user_input_with_results = f"User question: {user_input_text}\n---\nTool execution results: {tool_call_results}"
         temp_messages = [
             Message.system_message(

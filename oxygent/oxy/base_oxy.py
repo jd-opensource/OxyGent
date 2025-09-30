@@ -220,7 +220,7 @@ class Oxy(BaseModel, ABC):
             """
 
     async def init(self):
-        pass
+        self._set_desc_for_llm()
 
     async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
         """Pre-process the request before execution."""
@@ -674,11 +674,16 @@ class Oxy(BaseModel, ABC):
                     await event.wait()
                     await self._post_save_data(oxy_response)
 
-                post_save_data_task = asyncio.create_task(
-                    _post_save_data_task(oxy_response)
-                )
-                post_save_data_task.add_done_callback(self.mas.background_tasks.discard)
-                self.mas.background_tasks.add(post_save_data_task)
+                if oxy_request.is_async_storage:
+                    post_save_data_task = asyncio.create_task(
+                        _post_save_data_task(oxy_response)
+                    )
+                    post_save_data_task.add_done_callback(
+                        self.mas.background_tasks.discard
+                    )
+                    self.mas.background_tasks.add(post_save_data_task)
+                else:
+                    await _post_save_data_task(oxy_response)
             else:
                 logger.warning(
                     "Temporary invocation without storing data.",

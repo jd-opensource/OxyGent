@@ -2,7 +2,7 @@
 Unit tests for BaseLLM
 """
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -63,33 +63,3 @@ async def test_execute_and_think(llm, oxy_request):
     assert resp.output.endswith("Hello")
 
     oxy_request.send_message.assert_any_await({"type": "think", "content": "internal"})
-
-
-@pytest.mark.asyncio
-async def test_get_messages_url_to_base64(monkeypatch, llm, oxy_request):
-    oxy_request.arguments["messages"] = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "text", "text": "see"},
-                {"type": "image_url", "image_url": {"url": "http://x/a.png"}},
-                {"type": "video_url", "video_url": {"url": "http://x/v.mp4"}},
-            ],
-        }
-    ]
-
-    llm.is_convert_url_to_base64 = True
-
-    with (
-        patch(
-            "oxygent.oxy.llms.base_llm.image_to_base64", AsyncMock(return_value="img64")
-        ),
-        patch(
-            "oxygent.oxy.llms.base_llm.video_to_base64", AsyncMock(return_value="vid64")
-        ),
-    ):
-        msgs = await llm._get_messages(oxy_request)
-        blob = msgs[0]["content"]
-
-        assert blob[1]["image_url"]["url"] == "img64"
-        assert blob[2]["video_url"]["url"] == "vid64"

@@ -1,11 +1,22 @@
 import importlib
-from oxygent.oxy import FunctionHub
 import os
 
+from oxygent.oxy import FunctionHub
 
 # List of tool modules to import
-tool_modules = ["math_tools", "file_tools", "time_tools", "http_tools", "string_tools", "system_tools", "shell_tools",
-                "python_tools", "baidu_search_tools", "browser_automation_tools"]
+tool_modules = [
+    "math_tools",
+    "file_tools",
+    "time_tools",
+    "http_tools",
+    "string_tools",
+    "system_tools",
+    "shell_tools",
+    "python_tools",
+    "baidu_search_tools",
+    "image_gen_tools",
+    "browser_automation_tools",
+]
 
 __all__ = []
 
@@ -18,7 +29,8 @@ for module_name in tool_modules:
     # First check if the module file exists
     if not os.path.exists(module_path):
         print(
-            f"Warning: Failed to import tool '{module_name}': Module file does not exist, please check '{module_path}'")
+            f"Warning: Failed to import tool '{module_name}': Module file does not exist, please check '{module_path}'"
+        )
         globals()[module_name] = None
         continue
 
@@ -28,9 +40,12 @@ for module_name in tool_modules:
 
         # Filter out all non-private attributes that are instances of FunctionHub
         function_hub_instances = [
-            attr for attr in dir(module)
-            if not attr.startswith('_')  # Exclude private attributes
-            and isinstance(getattr(module, attr), FunctionHub)  # Only keep FunctionHub instances
+            attr
+            for attr in dir(module)
+            if not attr.startswith("_")  # Exclude private attributes
+            and isinstance(
+                getattr(module, attr), FunctionHub
+            )  # Only keep FunctionHub instances
         ]
 
         if function_hub_instances:
@@ -55,7 +70,8 @@ for module_name in tool_modules:
         # Print a clear prompt message
         if missing_package and not missing_package.startswith(__package__):
             print(
-                f"Warning: Failed to import tool '{module_name}': Missing dependency package '{missing_package}', please run: pip install {missing_package}")
+                f"Warning: Failed to import tool '{module_name}': Missing dependency package '{missing_package}', please run: pip install {missing_package}"
+            )
         else:
             print(f"Warning: Failed to import tool '{module_name}': {error_msg}")
 

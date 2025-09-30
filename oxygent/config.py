@@ -65,7 +65,7 @@ class Config:
         "message": {
             "is_send_tool_call": True,
             "is_send_observation": True,
-            "is_send_think": False,
+            "is_send_think": True,
             "is_send_answer": True,
             "is_stored": False,
             "is_show_in_terminal": False,

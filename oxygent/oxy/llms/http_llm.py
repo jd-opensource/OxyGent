@@ -58,6 +58,8 @@ class HttpLLM(RemoteLLM):
         elif use_openai:
             headers["Authorization"] = f"Bearer {self.api_key}"
 
+        headers.update(self.headers(oxy_request))
+
         # Construct payload for the API request
         if is_gemini:
             raw_msgs = await self._get_messages(oxy_request)

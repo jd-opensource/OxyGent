@@ -1,4 +1,5 @@
 import os
+import shutil
 
 # import pandas as pd
 from pydantic import Field
@@ -30,13 +31,23 @@ def read_file(path: str = Field(description="Path to the file to read")) -> str:
 
 
 @file_tools.tool(
-    description="Delete a file. Returns a success message if the file is deleted, or an error if the file does not exist."
+    description="Delete a file or directory. Returns a success message if the item is deleted, or an error if the item does not exist. For directories, this will delete all contents recursively."
 )
-def delete_file(path: str = Field(description="Path to the file to delete")) -> str:
+def delete_file(path: str = Field(description="Path to the file or directory to delete")) -> str:
     if not os.path.exists(path):
-        return f"Error: The file at {path} does not exist."
-    os.remove(path)
-    return f"Successfully deleted the file at {path}"
+        return f"Error: The file or directory at {path} does not exist."
+
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+            return f"Successfully deleted the file at {path}"
+        elif os.path.isdir(path):
+            shutil.rmtree(path)
+            return f"Successfully deleted the directory at {path} and all its contents"
+    except PermissionError:
+        return f"Error: Permission denied when trying to delete {path}"
+    except Exception as e:
+        return f"Error: Failed to delete {path}. Reason: {str(e)}"
 
 
 # @file_tools.tool(

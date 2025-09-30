@@ -57,8 +57,7 @@
 | `send_message(self, message)`                              | Yes               | `None`        | Push a structured event to the frontend via MAS/Redis.                                                  |
 | `set_query(self, query, master_level=False)`               | No                | `None`        | Store query either at master (`shared_data`) or node (`arguments`) level.                               |
 | `get_query(self, master_level=False)`                      | No                | `str`         | Fetch query from master or node scope.                                                                  |
-| `get_query_parts(self, master_level=False)`                | No                | `list`        | Return query in A2A-style ordered parts (list of `{part: {...}}`).                                      |
-| `set_query_parts(self, parts, master_level=False)`         | No                | `None`        | Convenience wrapper to set query from parts.                                                            |
+| `get_full_parts(self, master_level=False)`                 | No                | `list`        | Return query in A2A-style ordered parts (list of `{part: {...}}`).                                      |
 | `has_short_memory(self, master_level=False)`               | No                | `bool`        | Whether short-term memory exists at chosen scope.                                                       |
 | `set_short_memory(self, short_memory, master_level=False)` | No                | `None`        | Set short-term memory at chosen scope.                                                                  |
 | `get_short_memory(self, master_level=False)`               | No                | `list`        | Get short-term memory at chosen scope.                                                                  |

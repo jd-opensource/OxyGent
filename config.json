@@ -28,7 +28,7 @@
         "message": {
             "is_send_tool_call": true,
             "is_send_observation": true,
-            "is_send_think": false,
+            "is_send_think": true,
             "is_send_answer": true,
             "is_stored": false,
             "is_show_in_terminal": false,

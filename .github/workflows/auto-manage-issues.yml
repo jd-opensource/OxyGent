@@ -1,0 +1,90 @@
+# .github/workflows/auto-manage-issues.yml
+
+name: Auto Block Sensitive Issues
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  auto-block-issues:
+    permissions:
+      issues: write
+      contents: read
+    if: github.actor != github.event.repository.owner.login
+    runs-on: ubuntu-latest
+    steps:
+      - name: Detect and block sensitive issues
+        uses: actions/github-script@v7
+        with:
+          # 关键改动在这里！使用 | 将整个 script 内容作为块标量
+          script: |
+            // Get issue title and body (converted to lowercase)
+            const title = context.payload.issue.title.toLowerCase();
+            const body = context.payload.issue.body?.toLowerCase() || '';
+            
+            // List of sensitive keywords in both Chinese and English
+            const blockKeywords = [
+              // Chinese keywords
+              '刷星', '刷赞', '买星', '买赞', '虚假star', '假星', 
+              '可疑账号', '刷热度', '买热度', 'basinarapprowayl',
+              '刷issue', '刷评论', '买issue', '买评论', '虚假issue', '假issue',
+              '刷贡献', '买贡献', '贡献造假', 'issue 刷量', '评论 刷量',
+              
+              // English keywords
+              'star farming', 'buy star', 'fake star', 'fake stars',
+              'artificial stars', 'star manipulation', 'buy github stars',
+              'suspicious account', 'bot accounts', 'issue farming',
+              'comment spam', 'spam comments', 'fake issue', 'fake issues',
+              'buy issue', 'buy issues', 'buy comments', 'contribution fraud',
+              'activity farming', 'gaming the system'
+            ];
+            
+            // Check if the title or body contains any of the sensitive keywords
+            const shouldBlock = blockKeywords.some(keyword => 
+              title.includes(keyword.toLowerCase()) || 
+              body.includes(keyword.toLowerCase())
+            );
+            
+            if (shouldBlock) {
+              console.log(`Blocking sensitive issue #${context.issue.number}`);
+              
+              // 1. Add a blocked label
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  labels: ['🚫 blocked']
+                });
+              } catch (error) {
+                console.log('Failed to add label:', error);
+              }
+              
+              // 2. Add an automated comment explaining the action
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: "---\n<strong>⚠️ Content Blocked Notification</strong>\n\nThis issue has been automatically blocked because it contains restricted content. The project maintenance team only accepts technical discussions related to code development, feature implementation, and bug fixes.\n\nAccording to our community guidelines, meta-discussions about project popularity, Star counts, or any form of artificial activity are not within the scope of this repository.\n\n*This action was performed by an automated system.*"
+              });
+              
+              // 3. Immediately close the issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                state: 'closed'
+              });
+              
+              // 4. Lock the issue to prevent further comments
+              await github.rest.issues.lock({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number
+              });
+              
+              console.log('Issue has been closed and locked');
+            } else {
+              console.log('No sensitive content detected, skipping processing');
+            }

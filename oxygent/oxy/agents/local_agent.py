@@ -16,7 +16,6 @@ from pydantic import Field
 
 from ...config import Config
 from ...schemas import Memory, Message, OxyRequest, OxyResponse
-from ...utils.common_utils import process_attachments
 from ..base_tool import BaseTool
 from ..function_tools.function_hub import FunctionHub
 from ..function_tools.function_tool import FunctionTool
@@ -169,16 +168,25 @@ class LocalAgent(BaseAgent):
         This method performs agent initialization including tool setup and creates
         parallel agent instances for team-based execution when team_size > 1.
         """
+        self.is_multimodal_supported = self.mas.oxy_name_to_oxy[
+            self.llm_model
+        ].is_multimodal_supported
+        if self.is_multimodal_supported:
+            self.input_schema = {
+                "properties": {
+                    "query": {
+                        "description": "The image path and the query to ask about the images, for example: ![file 1](image1.png) ![file 2](image2.png) What are file 1 and file 2, respectively?"
+                    }
+                },
+                "required": ["query"],
+            }
+
         await super().init()
         if self.intent_understanding_agent:
             self.sub_agents.append(self.intent_understanding_agent)
         self._init_available_tool_name_list()
         if self.llm_model not in self.mas.oxy_name_to_oxy:
             raise Exception(f"LLM model [{self.llm_model}] not exists.")
-
-        self.is_multimodal_supported = self.mas.oxy_name_to_oxy[
-            self.llm_model
-        ].is_multimodal_supported
 
         if self.team_size > 1:
             team_names = []
@@ -229,7 +237,12 @@ class LocalAgent(BaseAgent):
                     "query": {
                         "bool": {
                             "must": [
-                                {"terms": {"trace_id": oxy_request.root_trace_ids}},
+                                {
+                                    "terms": {
+                                        "trace_id": oxy_request.root_trace_ids
+                                        + [oxy_request.current_trace_id]
+                                    }
+                                },
                                 {"term": {"session_name": session_name}},
                             ]
                         }
@@ -393,62 +406,6 @@ class LocalAgent(BaseAgent):
             )
         oxy_request.arguments["additional_prompt"] = self.additional_prompt
         oxy_request.arguments["tools_description"] = "\n\n".join(llm_tool_desc_list)
-
-        # multimodal support
-        query_parts = oxy_request.get_query_parts()  # slice a2a style query
-        multimodal_content = []  # LLM content list
-        plain_text_lines = []  # placeholder if the llm not support multimodal
-
-        for p in query_parts:
-            part = p.get("part", {})
-            ctype = part.get("content_type", "text/plain")
-            data = str(part.get("data", ""))
-
-            if ctype.startswith("text"):
-                multimodal_content.append({"type": "text", "text": data})
-                plain_text_lines.append(data)
-
-            elif ctype in ("url", "path"):
-                # parser url
-                multimodal_content.extend(process_attachments([data]))
-                plain_text_lines.append(data)
-
-            else:  # fallback
-                multimodal_content.append({"type": "text", "text": data})
-                plain_text_lines.append(data)
-
-        # ---------- write back query ----------
-        if self.is_multimodal_supported:
-            oxy_request.arguments["query"] = multimodal_content
-        else:
-            oxy_request.arguments["query"] = "\n".join(plain_text_lines)
-
-        # ---------- old attachments ----------
-        if self.is_attachment_processing_enabled and not isinstance(
-            oxy_request.arguments.get("query"), list
-        ):  # skip a2a attachments
-            raw_attachments = oxy_request.arguments.get("attachments", [])
-            structured_attachments = process_attachments(raw_attachments)
-
-            if structured_attachments:
-                original_query_text = oxy_request.arguments["query"]
-
-                if self.is_multimodal_supported:
-                    oxy_request.arguments["query"] = structured_attachments + [
-                        {"type": "text", "text": original_query_text}
-                    ]
-                else:
-                    attachment_urls = []
-                    for att in structured_attachments:
-                        for v in att.values():
-                            if isinstance(v, dict) and "url" in v:
-                                attachment_urls.append(v["url"])
-                                break
-                    if attachment_urls:
-                        oxy_request.arguments["query"] = (
-                            f"{original_query_text}\n\n[Attachments]\n"
-                            + "\n".join(attachment_urls)
-                        )
 
         return oxy_request
 

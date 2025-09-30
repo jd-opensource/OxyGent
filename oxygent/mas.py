@@ -44,7 +44,6 @@ from .oxy.mcp_tools.base_mcp_client import BaseMCPClient
 from .routes import router
 from .schemas import OxyRequest, OxyResponse, WebResponse
 from .utils.common_utils import (
-    _compose_query_parts,
     generate_uuid,
     get_format_time,
     msgpack_preprocess,
@@ -94,8 +93,12 @@ class MAS(BaseModel):
     func_filter: Optional[Callable] = Field(
         lambda x: x, exclude=True, description="filter function"
     )
+    func_interceptor: Optional[Callable] = Field(
+        lambda x: None, exclude=True, description="interceptor function"
+    )
 
     routers: list = Field(default_factory=list)
+    middlewares: list = Field(default_factory=list)
 
     def __init__(self, **kwargs):
         """Construct a new :class:`MAS`.
@@ -239,11 +242,9 @@ class MAS(BaseModel):
     async def init_db(self):
         """Es --- (table_name: key)
 
-        {app_name}_trace: trace_id: record trace of each call {app_name}_node: node_id:
-        record log of each node {app_name}_history: sub_session_id: record history of
-        read and write operations
-
-        sub_session_id = trace_id_{caller}_{callee}
+        {app_name}_trace: trace_id: record trace of each call
+        {app_name}_node: node_id: record log of each node
+        {app_name}_history: history_id: record history of read and write operations
         """
 
         # es
@@ -343,7 +344,7 @@ class MAS(BaseModel):
             {
                 "mappings": {
                     "properties": {
-                        "sub_session_id": {"type": "keyword"},
+                        "history_id": {"type": "keyword"},
                         "session_name": {"type": "keyword"},
                         "trace_id": {"type": "keyword"},
                         "memory": {"type": "text"},
@@ -627,34 +628,11 @@ class MAS(BaseModel):
             OxyResponse: Fully populated response object.
         """
         try:
-            # distinct attachments
-            if "attachments" in payload and payload["attachments"]:
-                atts, remotes = [], []
-                for att in payload["attachments"]:
-                    is_remote = att.startswith(("http://", "https://"))
-                    full_path = (
-                        att
-                        if is_remote
-                        else os.path.join(Config.get_cache_save_dir(), "uploads", att)
-                    )
-                    atts.append(full_path)
-                    if is_remote:
-                        remotes.append(full_path)
-                payload["attachments"] = atts
-                if remotes:
-                    urls = payload.get("web_file_url_list", [])
-                    payload["web_file_url_list"] = list(dict.fromkeys(urls + remotes))
-
-                payload["query"] = _compose_query_parts(payload.get("query", ""), atts)
-
             if "shared_data" not in payload:
                 payload["shared_data"] = dict()
             payload["shared_data"]["query"] = payload["query"]
 
             group_data = payload.get("group_data", {})
-
-            # payload = payload or {}
-            # payload.set default("shared_data",{})["query"] = payload.get("query","")
 
             if "restart_node_id" in payload and payload.get("restart_node_id"):
                 es_response = await self.es_client.search(
@@ -879,14 +857,23 @@ class MAS(BaseModel):
             allow_headers=["*"],
         )
 
+        for app_middleware in self.middlewares:
+            app.add_middleware(app_middleware)
+
+        app.include_router(router)
+        for app_router in self.routers:
+            app.include_router(app_router)
+
         web_src = "web"
         with importlib.resources.as_file(
             importlib.resources.files("oxygent") / web_src
         ) as web_path:
             app.mount("/web", StaticFiles(directory=str(web_path)), name="web")
-        app.include_router(router)
-        for app_router in self.routers:
-            app.include_router(app_router)
+
+        upload_dir = os.path.join(Config.get_cache_save_dir(), "uploads")
+        os.makedirs(upload_dir, exist_ok=True)
+        app.mount("/static", StaticFiles(directory=upload_dir), name="static")
+
         """
         For all of the nodes we fill the following information:
         - path: The path from the root node (master agent) to the currrent node.
@@ -975,36 +962,6 @@ class MAS(BaseModel):
             if "query" not in payload:
                 payload["query"] = ""
 
-            if "attachments" in payload:
-                attachments_with_path = []
-                remote_urls = []
-
-                for attachment in payload["attachments"]:
-                    is_remote = attachment.startswith(("http://", "https://"))
-                    file_path = (
-                        attachment
-                        if is_remote
-                        else os.path.join(
-                            Config.get_cache_save_dir(), "uploads", attachment
-                        )
-                    )
-                    attachments_with_path.append(file_path)
-                    if is_remote:
-                        remote_urls.append(file_path)
-
-                # distinct attachments
-                payload["attachments"] = attachments_with_path
-                if remote_urls:
-                    existing_urls = payload.get("web_file_url_list", [])
-                    payload["web_file_url_list"] = list(
-                        dict.fromkeys(existing_urls + remote_urls)
-                    )
-
-                # a2a style query
-                payload["query"] = _compose_query_parts(
-                    payload.get("query", ""), attachments_with_path
-                )
-
             if "current_trace_id" not in payload:
                 payload["current_trace_id"] = generate_uuid()
 
@@ -1018,12 +975,20 @@ class MAS(BaseModel):
         @app.api_route("/chat", methods=["GET", "POST"])
         async def chat(request: Request):
             payload = await request_to_payload(request)
+            # Apply request interceptor if configured
+            intercepted_response = self.func_interceptor(payload)
+            if intercepted_response is not None:
+                return intercepted_response
             oxy_response = await self.chat_with_agent(payload=payload)
             return oxy_response.output
 
         @app.api_route("/sse/chat", methods=["GET", "POST"])
         async def sse_chat(request: Request):
             payload = await request_to_payload(request)
+            # Apply request interceptor if configured
+            intercepted_response = self.func_interceptor(payload)
+            if intercepted_response is not None:
+                return intercepted_response
             current_trace_id = payload["current_trace_id"]
 
             logger.info(
@@ -1042,6 +1007,10 @@ class MAS(BaseModel):
         @app.api_route("/async/chat", methods=["GET", "POST"])
         async def async_chat(request: Request):
             payload = await request_to_payload(request)
+            # Apply request interceptor if configured
+            intercepted_response = self.func_interceptor(payload)
+            if intercepted_response is not None:
+                return intercepted_response
             current_trace_id = payload["current_trace_id"]
 
             logger.info(
