@@ -104,5 +104,5 @@ if __name__ == "__main__":
 #### knowledge
 1.Call the externally injected retrieval function to obtain relevant knowledge based on the request content.
 2.Write theretrieved knowledge into oxy_request.arguments under the placeholder key(knowledge_placeholder) for subsequent template rendering/prompt composition.
-### retrieval(str)
+#### retrieval(str)
 Perform knowledge retrieval based on the current request(e.g., from a vector database, searchservice, or self-hosted knowledgebase)
