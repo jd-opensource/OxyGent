@@ -14,10 +14,12 @@
 └── [BaseTool](../tools/base_tools.md)
 ```
 
-## Overview
-The `Reflexion` flow is an advanced mechanism in the OxyGent framework that enables agents to self-evaluate and iteratively optimize their outputs. Through this reflection mechanism, agents identify deficiencies in their responses and continuously improve them, making it suitable for scenarios requiring high-precision outputs such as mathematical calculations, professional consulting, and content creation.
+## 概述
+`Reflexion`流程通过反思机制，通过智能体识别回答中的不足并持续改进，使智能体能够自我评估并迭代优化输出，适用于需要高精度输出的场景。与此同时，多轮反思生成更高质量的回答会导致执行时间更长。
 
-## Architecture
+
+
+## 架构
 
 ```mermaid
 classDiagram
@@ -60,30 +62,30 @@ classDiagram
     }
 ```
 
-## Parameter Description
+## 参数说明
 
-### Reflexion Class Parameters
+### Reflexion类参数
 
-| Parameter Name | Type | Default Value | Description |
+| 参数名 | 类型 | 默认值 | 说明 |
 |-------|------|-------|------|
-| max_reflexion_rounds | int | 3 | Maximum number of reflection iterations |
-| worker_agent | str | "worker_agent" | Name of the worker agent |
-| reflexion_agent | str | "reflexion_agent" | Name of the reflection agent |
-| func_parse_worker_response | Callable | None | Function to parse worker agent responses |
-| func_parse_reflexion_response | Callable | None | Function to parse reflection agent responses |
-| pydantic_parser_reflexion | PydanticOutputParser | ReflectionEvaluation parser | Parser for reflection results |
-| evaluation_template | str | Default evaluation template | Template for evaluation prompts |
-| improvement_template | str | Default improvement template | Template for improvement prompts |
+| max_reflexion_rounds | int | 3 | 最大反思迭代次数 |
+| worker_agent | str | "worker_agent" | 工作智能体名称 |
+| reflexion_agent | str | "reflexion_agent" | 反思智能体名称 |
+| func_parse_worker_response | Callable | None | 工作智能体响应解析函数 |
+| func_parse_reflexion_response | Callable | None | 反思智能体响应解析函数 |
+| pydantic_parser_reflexion | PydanticOutputParser | ReflectionEvaluation解析器 | 反思结果解析器 |
+| evaluation_template | str | 默认评估模板 | 评估提示模板 |
+| improvement_template | str | 默认改进模板 | 改进提示模板 |
 
-### ReflectionEvaluation Class Parameters
+### ReflectionEvaluation类参数
 
-| Parameter Name | Type | Description |
+| 参数名 | 类型 | 说明 |
 |-------|------|------|
-| is_satisfactory | bool | Whether the answer is satisfactory |
-| evaluation_reason | str | Detailed explanation of the evaluation reasoning |
-| improvement_suggestions | str | Specific improvement suggestions if unsatisfactory |
+| is_satisfactory | bool | 回答是否令人满意 |
+| evaluation_reason | str | 评估理由的详细说明 |
+| improvement_suggestions | str | 如不满意，具体改进建议 |
 
-## Workflow
+## 工作流程
 
 ```mermaid
 sequenceDiagram
@@ -93,76 +95,76 @@ sequenceDiagram
     participant WorkerAgent
     participant ReflexionAgent
     
-    User->>OxyRequest: Submit query
-    OxyRequest->>Reflexion: Execute flow
+    User->>OxyRequest: 提交查询
+    OxyRequest->>Reflexion: 执行流程
     
-    loop Maximum max_reflexion_rounds times
-        Reflexion->>WorkerAgent: Send current query
-        WorkerAgent-->>Reflexion: Return answer
+    loop 最多max_reflexion_rounds次
+        Reflexion->>WorkerAgent: 发送当前查询
+        WorkerAgent-->>Reflexion: 返回回答
         
-        Reflexion->>Reflexion: Parse worker agent response
+        Reflexion->>Reflexion: 解析工作智能体回答
         
-        Reflexion->>ReflexionAgent: Send evaluation query
-        ReflexionAgent-->>Reflexion: Return evaluation results
+        Reflexion->>ReflexionAgent: 发送评估查询
+        ReflexionAgent-->>Reflexion: 返回评估结果
         
-        Reflexion->>Reflexion: Parse reflection evaluation results
+        Reflexion->>Reflexion: 解析反思评估结果
         
-        alt Answer is satisfactory
-            Reflexion-->>OxyRequest: Return final answer
-        else Answer is unsatisfactory and max iterations not reached
-            Reflexion->>Reflexion: Update query, add improvement suggestions
+        alt 回答满意
+            Reflexion-->>OxyRequest: 返回最终回答
+        else 回答不满意且未达到最大迭代次数
+            Reflexion->>Reflexion: 更新查询，添加改进建议
         end
     end
     
-    alt Maximum iterations reached
-        Reflexion->>Reflexion: Generate final answer
-        Reflexion-->>OxyRequest: Return final answer
+    alt 达到最大迭代次数
+        Reflexion->>Reflexion: 生成最终回答
+        Reflexion-->>OxyRequest: 返回最终回答
     end
     
-    OxyRequest-->>User: Return result
+    OxyRequest-->>User: 返回结果
 ```
 
-## Context Passing Mechanism
+## 上下文传递机制
 
-The context passing in the `Reflexion` flow is primarily implemented through the following methods:
+`Reflexion`流程中的上下文传递主要通过以下几种方式实现
 
-1. **Query Updates**: Using the `improvement_template` to combine the original query, current answer, and improvement suggestions into a new query passed to the Worker Agent
-2. **OxyRequest**: Serving as the context container for flow execution, persisting throughout the entire execution process
-3. **Template Formatting**: Using the `evaluation_template` to pass the original query and current answer to the `Reflexion Agent`
-4. **Additional Information**: Passing metadata such as reflection rounds and final evaluation through the `extra` field in the returned `OxyResponse`
+1. **查询更新**：通过`improvement_template`将原始查询、当前回答和改进建议组合成新的查询，传递给Worker Agent
+2. **OxyRequest**：作为流程执行的上下文容器，贯穿整个执行过程
+3. **模板格式化**：通过`evaluation_template`将原始查询和当前回答传递给`Reflexion Agent`
+4. **额外信息**：在返回的`OxyResponse`中通过`extra`字段传递反思轮数、最终评估等元信息
 
-## Usage
+## 用法
 
-### Basic Reflexion Flow Configuration
+### 基本Reflexion流配置
 
 ```python
 Reflexion(
     name="general_reflexion_flow",
-    desc="General reflection process to improve answer quality",
+    desc="通用反思流程，用于提高回答质量",
     worker_agent="worker_agent",
     reflexion_agent="reflexion_agent",
     max_reflexion_rounds=3,
 )
 ```
 
-### Math Reflexion Flow Configuration
+### Math Reflexion流配置
 
 ```python
 MathReflexion(
     name="math_reflexion_flow", 
-    desc="Specialized reflection process for mathematical problems",
+    desc="专门用于数学问题的反思流程",
     worker_agent="math_expert_agent",
     reflexion_agent="math_checker_agent",
     max_reflexion_rounds=3,
 )
 ```
 
-### Reflexion Flow Configuration with Custom Evaluation Template
+### 自定义评估模板的Reflexion流配置
 
 ```python
 Reflexion(
     name="detailed_reflexion_flow",
-    desc="Detailed reflection process using custom evaluation criteria",
+    desc="使用自定义评估标准的详细反思流程",
     worker_agent="detailed_worker_agent",
     reflexion_agent="detailed_reflexion_agent",
     max_reflexion_rounds=5,
@@ -187,32 +189,32 @@ Format:
 )
 ```
 
-## Advanced Usage
+## 高阶用法
 
-### Custom Reflection Function
+### 自定义反思函数
 
 ```python
 def custom_reflexion(response: str, oxy_request: OxyRequest) -> str:
-    """Custom reflection function to evaluate answer quality.
+    """自定义反思函数，评估回答质量。
     
     Args:
-        response (str): Agent answer to be evaluated
-        oxy_request: Current request context
+        response (str): 需要评估的智能体回答
+        oxy_request: 当前请求上下文
         
     Returns:
-        str: Reflection message if improvement needed; None otherwise
+        str: 如果需要改进，返回反思消息；否则返回None
     """
-    # Basic checks
+    # 基本检查
     if not response or len(response.strip()) < 5:
-        return "Answer is too short or empty. Please provide a more detailed and helpful response."
+        return "回答太短或为空。请提供更详细、更有帮助的答案。"
     
-    # Custom business logic checks
+    # 自定义业务逻辑检查
     if "hello" in oxy_request.get_query().lower():
-        # For greeting queries, expect friendly responses
+        # 对于问候查询，期望友好回应
         if not any(word in response.lower() for word in ["hello", "hi", "hey", "greetings", "welcome"]):
-            return "This is a greeting. Please respond in a more friendly and warm manner."
+            return "这是一个问候。请以更友好和热情的方式回应。"
     
-    # Check for common unhelpful responses
+    # 检查常见的无帮助回应
     unhelpful_phrases = [
         "i don't know",
         "i can't help",
@@ -222,41 +224,41 @@ def custom_reflexion(response: str, oxy_request: OxyRequest) -> str:
     ]
     
     if any(phrase in response.lower() for phrase in unhelpful_phrases):
-        return "Your answer doesn't seem helpful. Please try to provide a more constructive answer or suggest alternative solutions."
+        return "您的回答似乎没有帮助。请尝试提供更有建设性的答案或建议替代解决方案。"
     
     return None
 ```
 
-### Nested Reflection Function
+### 嵌套反思函数
 
 ```python
 def math_reflexion(response: str, oxy_request: OxyRequest) -> str:
-    """Specialized reflection function for mathematical problems."""
-    # First apply basic checks
+    """专门用于数学问题的反思函数。"""
+    # 首先应用基本检查
     basic_msg = custom_reflexion(response, oxy_request)
     if basic_msg:
         return basic_msg
     
-    # Math-specific checks
+    # 数学特定检查
     if any(word in oxy_request.get_query().lower() for word in ["calculate", "compute", "solve", "math", "equation"]):
-        # Expect step-by-step solutions
+        # 期望逐步解决方案
         if "step" not in response.lower() and "=" not in response:
-            return "For mathematical problems, please provide a step-by-step solution showing your work process."
+            return "对于数学问题，请提供逐步解决方案，展示您的工作过程。"
     
     return None
 ```
 
-### Custom Workflow Implementing Reflection
+### 自定义工作流实现反思
 
 ```python
 async def reflexion_workflow(oxy_request: OxyRequest):
     """
-    Workflow implementing an external reflection process:
-    1. Get user query
-    2. Have worker_agent generate initial answer
-    3. Have reflexion_agent evaluate answer quality
-    4. If unsatisfactory, provide improvement suggestions and regenerate
-    5. Return final satisfactory answer
+    实现外部反思过程的工作流：
+    1. 获取用户查询
+    2. 让worker_agent生成初始答案
+    3. 让reflexion_agent评估答案质量
+    4. 如果不满意，提供改进建议并重新生成
+    5. 返回最终满意的答案
     """
     
     user_query = oxy_request.get_query(master_level=True)
@@ -266,14 +268,14 @@ async def reflexion_workflow(oxy_request: OxyRequest):
     while current_iteration < max_iterations:
         current_iteration += 1
         
-        # Execute
+        # 执行
         worker_resp = await oxy_request.call(
             callee="worker_agent",
             arguments={"query": user_query}
         )
         worker_answer = worker_resp.output
         
-        # Input content for reflection
+        # 输入要反思的内容
         evaluation_query = f"""
 Please evaluate the quality of the following answer:
 
@@ -293,11 +295,11 @@ Improvement Suggestions: [If unsatisfactory, provide specific improvement sugges
         )
         reflexion_result = reflexion_resp.output
         
-        # Get reflection results
+        # 获取反思结果
         if "Satisfactory" in reflexion_result and "Unsatisfactory" not in reflexion_result:
             return f"Final answer optimized through {current_iteration} rounds of reflexion:\n\n{worker_answer}"
         
-        # Update query with reflection results
+        # 使用反思结果更新查询
         improvement_suggestion = ""
         lines = reflexion_result.split('\n')
         for line in lines:
@@ -308,5 +310,6 @@ Improvement Suggestions: [If unsatisfactory, provide specific improvement sugges
         if improvement_suggestion:
             user_query = f"{oxy_request.get_query(master_level=True)}\n\nPlease note the following improvement suggestions: {improvement_suggestion}"
     
-    # If max iterations are used up, return the current best result
+    # 如果重做次数用尽，返回当前最好结果
     return f"Answer after {max_iterations} rounds of reflexion attempts:\n\n{worker_answer}"
+```
