@@ -8,6 +8,8 @@ It supports both synchronous and asynchronous functions with automatic conversio
 import asyncio
 import functools
 import concurrent.futures
+import os
+import threading
 
 from pydantic import Field
 
@@ -34,12 +36,17 @@ class FunctionHub(BaseTool):
         """Initialize the FunctionHub with thread pool support."""
         super().__init__(**data)
         self._thread_pool = None  # Private attribute for thread pool
+        self._thread_pool_lock = threading.Lock()  # Lock for thread pool initialization
 
     @property
     def thread_pool(self):
-        """Lazy initialization of thread pool."""
+        """Lazy initialization of thread pool with thread safety."""
         if self._thread_pool is None:
-            self._thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+            with self._thread_pool_lock:
+                if self._thread_pool is None:  # Double-checked locking pattern
+                    cpu_count = os.cpu_count() or 1
+                    max_workers = min(max(cpu_count * 3, 4), 32)
+                    self._thread_pool = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
         return self._thread_pool
 
     async def init(self):
