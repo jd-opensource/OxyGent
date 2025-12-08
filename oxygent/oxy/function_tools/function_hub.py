@@ -10,11 +10,14 @@ import functools
 import concurrent.futures
 import os
 import threading
+import logging
 
 from pydantic import Field
 
 from ..base_tool import BaseTool
 from .function_tool import FunctionTool
+
+logger = logging.getLogger(__name__)
 
 
 class FunctionHub(BaseTool):
@@ -115,7 +118,73 @@ class FunctionHub(BaseTool):
         return decorator
 
     async def cleanup(self):
-        """Clean up resources, including the thread pool."""
+        """Clean up resources, including the thread pool.
+        
+        This method ensures proper shutdown of the thread pool to prevent
+        resource leaks and dangling threads. It waits for all pending tasks
+        to complete before shutting down.
+        
+        The cleanup process is idempotent - multiple calls are safe.
+        """
         if self._thread_pool:
-            self._thread_pool.shutdown(wait=True)
-            self._thread_pool = None
+            try:
+                logger.info(f"FunctionHub {self.name}: Starting thread pool cleanup...")
+                # Wait for all pending tasks to complete
+                self._thread_pool.shutdown(wait=True)
+                logger.info(f"FunctionHub {self.name}: Thread pool shutdown completed")
+            except Exception as e:
+                logger.error(f"FunctionHub {self.name}: Error during thread pool cleanup: {e}")
+                # Even if shutdown fails, ensure _thread_pool is set to None
+                # to prevent further usage and potential memory leaks
+            finally:
+                self._thread_pool = None
+    
+    def is_thread_pool_active(self):
+        """Check if the thread pool is currently active.
+        
+        Returns:
+            bool: True if thread pool is initialized and active, False otherwise.
+        """
+        return self._thread_pool is not None
+    
+    def get_thread_pool_info(self):
+        """Get information about the current thread pool.
+        
+        Returns:
+            dict: Thread pool information including worker count and status,
+                  or None if pool is not initialized.
+        """
+        if self._thread_pool is None:
+            return None
+        
+        try:
+            # ThreadPoolExecutor doesn't expose internal state directly,
+            # but we can check if it's shut down
+            return {
+                "initialized": True,
+                "workers": getattr(self._thread_pool, '_max_workers', 'unknown'),
+                "shutdown": getattr(self._thread_pool, '_shutdown', False)
+            }
+        except Exception:
+            return {"initialized": True, "status": "active"}
+    
+    async def __aenter__(self):
+        """Async context manager entry point.
+        
+        Returns:
+            FunctionHub: Self for use in async with statement
+        """
+        await self.init()
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit point.
+        
+        Ensures cleanup is performed even if exceptions occur during usage.
+        
+        Args:
+            exc_type: Exception type if an exception occurred
+            exc_val: Exception value if an exception occurred
+            exc_tb: Exception traceback if an exception occurred
+        """
+        await self.cleanup()
