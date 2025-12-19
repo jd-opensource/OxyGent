@@ -21,7 +21,7 @@ def write_file(
 
 
 @file_tools.tool(
-    description="Read the content of a file. Returns an error message if the file does not exist."
+    description="Read the content of a file. Returns an error message if the file does not exist. For uploaded files, use the complete file path including directory structure."
 )
 def read_file(path: str = Field(description="Path to the file to read")) -> str:
     if not os.path.exists(path):
