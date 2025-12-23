@@ -109,6 +109,12 @@ class Config:
             "mcp_is_keep_alive": True,
             "is_concurrent_init": True,
         },
+        "rate_limiter": {
+            "enabled": False,
+            "default_rate": 1.0,
+            "default_capacity": 10,
+            "per_oxy_limits": {},
+        },
     }
 
     @classmethod
@@ -623,3 +629,45 @@ class Config:
     @classmethod
     def get_tool_is_concurrent_init(cls):
         return cls.get_module_config("tool", "is_concurrent_init")
+        
+    """ rate_limiter """
+    
+    @classmethod
+    def set_rate_limiter_config(cls, rate_limiter_config):
+        return cls.set_module_config("rate_limiter", rate_limiter_config)
+        
+    @classmethod
+    def get_rate_limiter_config(cls):
+        return cls.get_module_config("rate_limiter")
+        
+    @classmethod
+    def set_rate_limiter_enabled(cls, enabled: bool):
+        cls.set_module_config("rate_limiter", "enabled", enabled)
+        
+    @classmethod
+    def get_rate_limiter_enabled(cls) -> bool:
+        return cls.get_module_config("rate_limiter", "enabled", False)
+        
+    @classmethod
+    def set_rate_limiter_default_rate(cls, rate: float):
+        cls.set_module_config("rate_limiter", "default_rate", rate)
+        
+    @classmethod
+    def get_rate_limiter_default_rate(cls) -> float:
+        return cls.get_module_config("rate_limiter", "default_rate", 1.0)
+        
+    @classmethod
+    def set_rate_limiter_default_capacity(cls, capacity: int):
+        cls.set_module_config("rate_limiter", "default_capacity", capacity)
+        
+    @classmethod
+    def get_rate_limiter_default_capacity(cls) -> int:
+        return cls.get_module_config("rate_limiter", "default_capacity", 10)
+        
+    @classmethod
+    def set_rate_limiter_per_oxy_limits(cls, per_oxy_limits: dict):
+        cls.set_module_config("rate_limiter", "per_oxy_limits", per_oxy_limits)
+        
+    @classmethod
+    def get_rate_limiter_per_oxy_limits(cls) -> dict:
+        return cls.get_module_config("rate_limiter", "per_oxy_limits", {})
