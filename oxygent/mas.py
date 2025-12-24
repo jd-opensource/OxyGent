@@ -35,6 +35,7 @@ from .databases.db_vector import VearchDB
 from .db_factory import DBFactory
 from .log_setup import setup_logging
 from .oxy import Oxy
+from .rate_limiter import get_rate_limit_manager, RateLimitManager
 from .oxy.agents.base_agent import BaseAgent
 from .oxy.agents.remote_agent import RemoteAgent
 from .oxy.base_flow import BaseFlow
@@ -97,6 +98,10 @@ class MAS(BaseModel):
     func_interceptor: Optional[Callable] = Field(
         lambda x: None, exclude=True, description="interceptor function"
     )
+    
+    rate_limiter: Optional[RateLimitManager] = Field(
+        None, exclude=True, description="Rate limiter manager"
+    )
 
     func_process_message: Optional[Callable] = Field(
         lambda x, oxy_request: x, exclude=True, description="process message function"
@@ -127,6 +132,10 @@ class MAS(BaseModel):
             Config.set_app_name(self.name)
         else:
             self.name = Config.get_app_name()
+            
+        # Initialize rate limiter if enabled
+        if Config.get_rate_limiter_enabled():
+            self._init_rate_limiter()
 
     async def __aenter__(self):
         await self.init()
@@ -190,6 +199,14 @@ class MAS(BaseModel):
         if oxy.name in self.oxy_name_to_oxy:
             raise Exception(f"oxy [{oxy.name}] already exists.")
         self.oxy_name_to_oxy[oxy.name] = oxy
+        
+        # Create rate limiter for the new oxy if rate limiting is enabled
+        if self.rate_limiter and Config.get_rate_limiter_enabled():
+            per_oxy_limits = Config.get_rate_limiter_per_oxy_limits()
+            oxy_limits = per_oxy_limits.get(oxy.name, {})
+            rate = oxy_limits.get("rate", Config.get_rate_limiter_default_rate())
+            capacity = oxy_limits.get("capacity", Config.get_rate_limiter_default_capacity())
+            self._create_oxy_limiter(oxy.name, rate, capacity)
 
     def add_oxy_list(self, oxy_list: list[Oxy]):
         """Register a list of Oxy objects.
@@ -199,6 +216,72 @@ class MAS(BaseModel):
         """
         for oxy in oxy_list:
             self.add_oxy(oxy)
+            
+    def _init_rate_limiter(self):
+        """Initialize the rate limiter manager and create limiters for oxy instances."""
+        logger.info("Initializing rate limiter...")
+        self.rate_limiter = get_rate_limit_manager()
+        self.rate_limiter.enable()
+        
+        # Create default limiter with configuration
+        default_rate = Config.get_rate_limiter_default_rate()
+        default_capacity = Config.get_rate_limiter_default_capacity()
+        
+        # Create limiters for existing oxy instances
+        for oxy_name, oxy in self.oxy_name_to_oxy.items():
+            self._create_oxy_limiter(oxy_name, default_rate, default_capacity)
+            
+        # Apply per-oxy limits from configuration
+        per_oxy_limits = Config.get_rate_limiter_per_oxy_limits()
+        for oxy_name, limits in per_oxy_limits.items():
+            if oxy_name in self.oxy_name_to_oxy:
+                rate = limits.get("rate", default_rate)
+                capacity = limits.get("capacity", default_capacity)
+                self._create_oxy_limiter(oxy_name, rate, capacity)
+                
+        logger.info(f"Rate limiter initialized with {len(self.rate_limiter._limiters)} limiters")
+        
+    def _create_oxy_limiter(self, oxy_name: str, rate: float, capacity: int):
+        """Create a rate limiter for a specific oxy instance."""
+        if self.rate_limiter:
+            self.rate_limiter.create_limiter(oxy_name, rate, capacity)
+            logger.debug(f"Created rate limiter for oxy '{oxy_name}': rate={rate}, capacity={capacity}")
+            
+    def check_rate_limit(self, oxy_name: str, tokens: int = 1) -> bool:
+        """Check if rate limit allows the operation for an oxy instance.
+        
+        Args:
+            oxy_name: Name of the oxy instance
+            tokens: Number of tokens to acquire
+            
+        Returns:
+            True if operation is allowed, False otherwise
+        """
+        if not self.rate_limiter:
+            return True
+        return self.rate_limiter.check_rate_limit(oxy_name, tokens)
+        
+    async def check_rate_limit_async(self, oxy_name: str, tokens: int = 1) -> bool:
+        """Async check if rate limit allows the operation for an oxy instance.
+        
+        Args:
+            oxy_name: Name of the oxy instance
+            tokens: Number of tokens to acquire
+            
+        Returns:
+            True if operation is allowed, False otherwise
+        """
+        if not self.rate_limiter:
+            return True
+        return await self.rate_limiter.check_rate_limit_async(oxy_name, tokens)
+        
+    def get_rate_limiter_manager(self) -> Optional[RateLimitManager]:
+        """Get the rate limiter manager.
+        
+        Returns:
+            Rate limiter manager if initialized, None otherwise
+        """
+        return self.rate_limiter
 
     async def init(self):
         """Initialize the MAS. This coroutine performs all necessary setup steps to

@@ -151,6 +151,11 @@ class Oxy(BaseModel, ABC):
     timeout: float = Field(3600, description="Timeout in seconds.")
     retries: int = Field(2)
     delay: float = Field(1.0)
+    
+    rate_limiter_enabled: bool = Field(
+        default_factory=Config.get_rate_limiter_enabled,
+        description="Enable rate limiting for this oxy"
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -409,6 +414,28 @@ class Oxy(BaseModel, ABC):
             )
 
     async def _before_execute(self, oxy_request: OxyRequest) -> OxyRequest:
+        """Check rate limit before execution."""
+        if (self.mas and
+            self.rate_limiter_enabled and
+            Config.get_rate_limiter_enabled()):
+            # Check rate limit for this oxy instance
+            allowed = await self.mas.check_rate_limit_async(self.name)
+            if not allowed:
+                logger.warning(
+                    f"Rate limit exceeded for oxy {self.name}",
+                    extra={
+                        "trace_id": oxy_request.current_trace_id,
+                        "node_id": oxy_request.node_id,
+                    },
+                )
+                # Create a rate limited response
+                from ..schemas import OxyResponse, OxyState
+                rate_limited_response = OxyResponse(
+                    state=OxyState.FAILED,
+                    output=f"Rate limit exceeded for {self.name}. Please try again later.",
+                )
+                rate_limited_response.oxy_request = oxy_request
+                raise Exception(f"Rate limit exceeded for {self.name}")
         return oxy_request
 
     @abstractmethod
