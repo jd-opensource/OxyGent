@@ -12,19 +12,8 @@ import traceback
 from functools import wraps
 from typing import Union
 
-try:
-    # aioredis is not compatible with Python 3.13 in some environments
-    # (TypeError: duplicate base class TimeoutError). Treat it as optional.
-    from aioredis import Redis  # type: ignore
-    from aioredis.exceptions import ConnectionError, TimeoutError  # type: ignore
-except Exception:  # pragma: no cover
-
-    class Redis:  # type: ignore
-        @classmethod
-        def from_url(cls, *args, **kwargs):
-            raise RuntimeError("aioredis is not available in this environment")
-
-    ConnectionError = TimeoutError = Exception  # type: ignore
+from aioredis import Redis
+from aioredis.exceptions import ConnectionError, TimeoutError
 
 from ...config import Config
 

@@ -41,17 +41,10 @@ class ParallelAgent(LocalAgent):
         )
 
         temp_memory = Memory()
-
-        additional = oxy_request.arguments.get("additional_prompt", "")
-        if isinstance(additional, str) and additional.strip():
-            additional = "\n\n" + additional.strip()
-        else:
-            additional = ""
-
         temp_memory.add_message(
             Message.system_message(
                 f"""You are a helpful assistant, the user's question is:{oxy_request.get_query()}.
-Please summarize the results of the parallel execution of the above tasks.{additional}"""
+Please summarize the results of the parallel execution of the above tasks."""
             )
         )
         temp_memory.add_message(
