@@ -277,6 +277,31 @@ class OxyRequest(BaseModel):
 
         caller_oxy = self.get_oxy(oxy_request.caller)
         oxy = self.get_oxy(oxy_name)
+
+        # Skill-based hard allowlist enforcement (Phase 2)
+        active_skill = oxy_request.shared_data.get("_active_skill")
+        if isinstance(active_skill, dict):
+            env_mods = active_skill.get("env_mods")
+            if isinstance(env_mods, dict):
+                allowed = env_mods.get("allowed_tools")
+                if isinstance(allowed, list) and allowed:
+                    # Always allow LLM calls, otherwise agents cannot function.
+                    if (
+                        getattr(oxy, "category", None) != "llm"
+                        and oxy_name not in allowed
+                    ):
+                        error_msg = (
+                            f"Skill '{active_skill.get('name')}' restricts tools. "
+                            f"Tool '{oxy_name}' is not allowed. Allowed: {allowed}"
+                        )
+                        logger.warning(
+                            error_msg,
+                            extra={
+                                "trace_id": oxy_request.current_trace_id,
+                                "node_id": oxy_request.node_id,
+                            },
+                        )
+                        return OxyResponse(state=OxyState.SKIPPED, output=error_msg)
         # Ensure permission for calling
         if (
             oxy_request.caller_category != "user"
@@ -313,8 +338,21 @@ class OxyRequest(BaseModel):
             oxy_request.arguments[system_arg] = system_arg_dict[system_arg]
         # Execute the oxy
         try:
+            # Skill-based timeout override for LLM calls (Phase 2)
+            effective_timeout = oxy.timeout
+            if (
+                isinstance(active_skill, dict)
+                and getattr(oxy, "category", None) == "llm"
+            ):
+                env_mods = active_skill.get("env_mods")
+                if isinstance(env_mods, dict) and env_mods.get("timeout") is not None:
+                    try:
+                        effective_timeout = float(env_mods.get("timeout"))
+                    except Exception:
+                        pass
+
             oxy_response = await asyncio.wait_for(
-                oxy.execute(oxy_request), timeout=oxy.timeout
+                oxy.execute(oxy_request), timeout=effective_timeout
             )
             # Process special parameters in response
             if oxy_name == "retrieve_tools":

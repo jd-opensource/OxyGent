@@ -1,10 +1,18 @@
 # tests/integration/test_parallel_demo.py
 
+import os
 import re
 
 import pytest
 
 from examples.agents.parallel_demo import test as parallel_demo_test
+
+
+if os.getenv("RUN_OXYGENT_WEB_INTEGRATION") != "1":
+    pytest.skip(
+        "Skipping web-service integration test (set RUN_OXYGENT_WEB_INTEGRATION=1 to enable)",
+        allow_module_level=True,
+    )
 
 
 @pytest.mark.asyncio

@@ -79,12 +79,14 @@ class ReActAgent(LocalAgent):
 
     trust_mode: bool = Field(False, description="Enable trust mode for direct results")
 
-    func_parse_llm_response: Optional[Callable[[str, OxyRequest], LLMResponse]] = Field(
-        None, exclude=True, description="Function to parse LLM output"
-    )
+    func_parse_llm_response: Optional[
+        Callable[[str, Optional[OxyRequest]], LLMResponse]
+    ] = Field(None, exclude=True, description="Function to parse LLM output")
 
-    func_reflexion: Optional[Callable[[str, OxyRequest], str]] = Field(
-        None, exclude=True, description="Function to perform reflexion on responses"
+    func_reflexion: Optional[Callable[[str, Optional[OxyRequest]], Optional[str]]] = (
+        Field(
+            None, exclude=True, description="Function to perform reflexion on responses"
+        )
     )
 
     def __init__(self, **kwargs):
@@ -103,9 +105,13 @@ class ReActAgent(LocalAgent):
 
         # Add retrieve_tools if vector search is conf igured
         if Config.get_vearch_config():
+            if self.tools is None:
+                self.tools = []
             self.tools.append("retrieve_tools")
 
-    def _default_reflexion(self, response: str, oxy_request: OxyRequest) -> str:
+    def _default_reflexion(
+        self, response: str, oxy_request: Optional[OxyRequest]
+    ) -> Optional[str]:
         """Default reflexion function that checks if response is empty or invalid.
 
         Args:
@@ -121,7 +127,7 @@ class ReActAgent(LocalAgent):
         return None
 
     async def _get_history(
-        self, oxy_request: OxyRequest, is_get_user_master_session=False
+        self, oxy_request: OxyRequest, is_get_user_master_session: bool = False
     ) -> Memory:
         """Retrieve conversation history with intelligent memory management.
 
@@ -138,6 +144,8 @@ class ReActAgent(LocalAgent):
             Memory: Processed conversation history optimized for context.
         """
         short_memory = Memory()
+        if not self.mas or not getattr(self.mas, "es_client", None):
+            return short_memory
         if is_get_user_master_session:
             session_name = "__".join(oxy_request.call_stack[:2])
         else:
@@ -233,7 +241,7 @@ class ReActAgent(LocalAgent):
         return short_memory
 
     def _parse_llm_response(
-        self, ori_response: str, oxy_request: OxyRequest = None
+        self, ori_response: str, oxy_request: Optional[OxyRequest] = None
     ) -> LLMResponse:
         """Parse LLM response to determine next action.
 
@@ -274,7 +282,11 @@ class ReActAgent(LocalAgent):
                     ori_response=ori_response,
                 )
             else:
-                reflection_msg = self.func_reflexion(ori_response, oxy_request)
+                reflection_msg = (
+                    self.func_reflexion(ori_response, oxy_request)
+                    if self.func_reflexion
+                    else None
+                )
                 if reflection_msg:
                     return LLMResponse(
                         state=LLMState.ERROR_PARSE,
@@ -289,7 +301,7 @@ class ReActAgent(LocalAgent):
         except Exception as e:
             logger.warning(e)
             return LLMResponse(
-                state=LLMState.ERROR_PARSE, output=e, ori_response=ori_response
+                state=LLMState.ERROR_PARSE, output=str(e), ori_response=ori_response
             )
 
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
@@ -320,14 +332,17 @@ class ReActAgent(LocalAgent):
             temp_memory.add_messages(react_memory.messages)
 
             full_memory = temp_memory.to_dict_list()
+            llm_arguments = {"messages": full_memory}
+            llm_params = oxy_request.arguments.get("llm_params", {})
+            if isinstance(llm_params, dict) and llm_params:
+                llm_arguments.update(llm_params)
             oxy_response = await oxy_request.call(
                 callee=self.llm_model,
-                arguments={"messages": full_memory},
+                arguments=llm_arguments,
             )
             oxy_request.arguments["full_memory"] = full_memory
-            llm_response = self.func_parse_llm_response(
-                oxy_response.output, oxy_request
-            )
+            parse_fn = self.func_parse_llm_response or self._parse_llm_response
+            llm_response = parse_fn(oxy_response.output, oxy_request)
 
             # Execute based on LLM decision
             if llm_response.state is LLMState.ANSWER:
@@ -335,6 +350,7 @@ class ReActAgent(LocalAgent):
                     state=OxyState.COMPLETED,
                     output=llm_response.output,
                     extra={"react_memory": react_memory.to_dict_list()},
+                    oxy_request=oxy_request,
                 )
             elif llm_response.state is LLMState.TOOL_CALL:
                 # Execute tool calls (possibly multiple)
@@ -359,14 +375,15 @@ class ReActAgent(LocalAgent):
                     ]
                 )
 
-                # observation_list = []
                 observation = Observation()
                 for tool_call_dict, oxy_response in zip(
                     tool_call_dict_list, oxy_responses
                 ):
+                    tool_name = tool_call_dict["tool_name"]
+
                     observation.add_exec_result(
                         ExecResult(
-                            executor=tool_call_dict["tool_name"],
+                            executor=tool_name,
                             oxy_response=oxy_response,
                         )
                     )
@@ -382,6 +399,7 @@ class ReActAgent(LocalAgent):
                             state=OxyState.COMPLETED,
                             output=result_payload,
                             extra={"react_memory": react_memory.to_dict_list()},
+                            oxy_request=oxy_request,
                         )
 
                 # Add to ReAct memory for next iteration
@@ -401,7 +419,7 @@ class ReActAgent(LocalAgent):
                 react_memory.add_message(
                     Message.assistant_message(llm_response.ori_response)
                 )
-                react_memory.add_message(Message.user_message(llm_response.output))
+                react_memory.add_message(Message.user_message(str(llm_response.output)))
 
         # Fallback mechanism when max rounds reached
         # Extract tool call results for final summary
@@ -426,11 +444,14 @@ class ReActAgent(LocalAgent):
         ]
         oxy_response = await oxy_request.call(
             callee=self.llm_model,
-            arguments={"messages": [msg.to_dict() for msg in temp_messages]},
+            arguments={
+                "messages": [msg.to_dict() for msg in temp_messages],
+                **(oxy_request.arguments.get("llm_params", {}) or {}),
+            },
         )
-
         return OxyResponse(
             state=OxyState.COMPLETED,
             output=oxy_response.output,
             extra={"react_memory": react_memory.to_dict_list()},
+            oxy_request=oxy_request,
         )

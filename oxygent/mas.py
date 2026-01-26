@@ -110,6 +110,25 @@ class MAS(BaseModel):
     feedback_dict: dict[str, asyncio.Queue] = Field(default_factory=dict)
     channel_id_dict: dict[str, list] = Field(default_factory=dict)
 
+    # Skills system
+    skill_dirs: list = Field(
+        default_factory=lambda: [
+            ".oxygent/skills/",           # Project-local skills
+            "~/.oxygent/skills/",         # User-level skills
+            "oxygent/preset_skills/",     # Built-in preset skills
+        ],
+        description="Directories to search for skill definitions",
+    )
+    auto_discover_skills: bool = Field(
+        True,
+        description="Whether to automatically discover skills at startup",
+    )
+    skill_registry: Optional[Any] = Field(
+        None,
+        description="Skill registry for managing skills",
+        exclude=True,
+    )
+
     def __init__(self, **kwargs):
         """Construct a new :class:`MAS`.
 
@@ -213,6 +232,7 @@ class MAS(BaseModel):
         - Setting up the agent organization structure
         - Initialize the vector search if configured
         - Setting up dynamic agents for live prompt management
+        - Initializing the skills system
         """
         self.show_banner()
         self.show_mas_info()
@@ -235,6 +255,9 @@ class MAS(BaseModel):
         self.init_agent_organization()
         self.show_org()
 
+        # Initialize the skills system
+        await self._init_skills_system()
+
         # Setup dynamic agents for live prompt management
         logger.info("📋 OxyGent MAS Management Initialization")
         logger.info("=" * 64)
@@ -246,6 +269,57 @@ class MAS(BaseModel):
         except Exception as e:
             logger.warning(f"Failed to setup dynamic agents: {e}")
         logger.info("=" * 64)
+
+    async def _init_skills_system(self):
+        """Initialize the skills system with registry and Skill tool.
+
+        This method:
+        1. Creates the SkillRegistry with configured skill directories
+        2. Discovers available skills (metadata only)
+        3. Creates and registers the Skill tool
+        4. Logs the number of discovered skills
+        """
+        if not self.auto_discover_skills:
+            logger.info("Skills system disabled (auto_discover_skills=False)")
+            return
+
+        try:
+            from .oxy.skills import SkillRegistry, SkillTool
+
+            # Initialize skill registry
+            self.skill_registry = SkillRegistry(
+                skill_dirs=self.skill_dirs,
+                auto_discover=True,
+            )
+
+            # Create and register the Skill tool (or reuse existing)
+            existing_tool = self.oxy_name_to_oxy.get("Skill")
+            if existing_tool:
+                if isinstance(existing_tool, SkillTool):
+                    existing_tool.set_registry(self.skill_registry)
+                    existing_tool.set_mas(self)
+                    await existing_tool.init()
+                else:
+                    logger.warning(
+                        "Existing oxy named 'Skill' is not a SkillTool; skipping registration"
+                    )
+            else:
+                skill_tool = SkillTool()
+                skill_tool.set_registry(self.skill_registry)
+                skill_tool.set_mas(self)
+                await skill_tool.init()
+                self.add_oxy(skill_tool)
+
+            logger.info(
+                f"✅ Skills system initialized with {len(self.skill_registry)} skills"
+            )
+            if self.skill_registry.metadata_index:
+                skill_names = ", ".join(self.skill_registry.metadata_index.keys())
+                logger.debug(f"Available skills: {skill_names}")
+
+        except Exception as e:
+            logger.warning(f"Failed to initialize skills system: {e}")
+            self.skill_registry = None
 
     async def cleanup_servers(self) -> None:
         """Gracefully shut down remote servers/clients.

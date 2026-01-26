@@ -15,7 +15,7 @@ from typing import Optional
 from pydantic import Field
 
 from ...config import Config
-from ...schemas import Memory, Message, OxyRequest, OxyResponse
+from ...schemas import Memory, Message, OxyRequest, OxyResponse, OxyState
 from ..bank_tools.bank_client import BankClient
 from ..bank_tools.bank_tool import BankTool
 from ..base_tool import BaseTool
@@ -25,6 +25,8 @@ from ..mcp_tools.mcp_tool import MCPTool
 from ..mcp_tools.stdio_mcp_client import BaseMCPClient
 from .base_agent import BaseAgent
 from ...live_prompt.manager import get_dynamic_prompt
+
+from ..skills.skill_selector import select_skill
 
 logger = logging.getLogger(__name__)
 
@@ -125,6 +127,23 @@ class LocalAgent(BaseAgent):
 
     team_size: int = Field(1, description="Number of instances for team execution")
 
+    # Skills (selector-based activation)
+    enable_skills: bool = Field(
+        True,
+        description="Whether to enable skill selector + activation for this agent",
+    )
+    skill_selector_min_confidence: float = Field(
+        0.6,
+        description="Minimum confidence required to auto-activate a skill",
+    )
+    skill_selector_max_candidates: int = Field(
+        30,
+        description="Max skill candidates included in selector prompt",
+    )
+
+    _active_skill_shared_key: str = "_active_skill"
+    _skip_skill_selector_shared_key: str = "_skip_skill_selector"
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -192,32 +211,38 @@ class LocalAgent(BaseAgent):
 
     async def reload_prompt(self) -> bool:
         """Reload prompt from live prompt system (hot reload support).
-        
+
         This method re-fetches the prompt from storage, enabling hot updates
         without restarting the agent. Useful when prompts are modified in the
         management platform.
-        
+
         Returns:
             bool: True if prompt was successfully reloaded, False otherwise.
         """
         # Check if live prompt is enabled
         if not self.use_live_prompt:
-            logger.debug(f"Agent '{self.name}' has live prompt disabled, skipping reload")
+            logger.debug(
+                f"Agent '{self.name}' has live prompt disabled, skipping reload"
+            )
             return False
-            
+
         try:
             fallback = self.prompt if self.prompt else ""
             new_prompt = await get_dynamic_prompt(self.prompt_key, fallback)
-            
+
             if new_prompt != self._resolved_prompt:
                 self._resolved_prompt = new_prompt
-                logger.info(f"Agent '{self.name}' prompt hot-reloaded via key '{self.prompt_key}': {len(self._resolved_prompt)} chars")
+                logger.info(
+                    f"Agent '{self.name}' prompt hot-reloaded via key '{self.prompt_key}': {len(self._resolved_prompt)} chars"
+                )
                 return True
             else:
                 logger.debug(f"Agent '{self.name}' prompt unchanged")
                 return True
         except Exception as e:
-            logger.error(f"Failed to reload prompt for agent '{self.name}' with key '{self.prompt_key}': {e}")
+            logger.error(
+                f"Failed to reload prompt for agent '{self.name}' with key '{self.prompt_key}': {e}"
+            )
             return False
 
     async def init(self):
@@ -232,20 +257,28 @@ class LocalAgent(BaseAgent):
             if self.prompt_key is None:
                 # Default: use agent name + "_prompt" as the key
                 self.prompt_key = f"{self.name}_prompt"
-            
+
             # Resolve the prompt from live prompt system
             try:
                 fallback = self.prompt if self.prompt else ""
-                self._resolved_prompt = await get_dynamic_prompt(self.prompt_key, fallback)
-                logger.debug(f"Agent '{self.name}' resolved prompt via key '{self.prompt_key}': {len(self._resolved_prompt)} chars")
+                self._resolved_prompt = await get_dynamic_prompt(
+                    self.prompt_key, fallback
+                )
+                logger.debug(
+                    f"Agent '{self.name}' resolved prompt via key '{self.prompt_key}': {len(self._resolved_prompt)} chars"
+                )
             except Exception as e:
-                logger.warning(f"Failed to resolve dynamic prompt for agent '{self.name}' with key '{self.prompt_key}': {e}")
+                logger.warning(
+                    f"Failed to resolve dynamic prompt for agent '{self.name}' with key '{self.prompt_key}': {e}"
+                )
                 self._resolved_prompt = self.prompt if self.prompt else ""
         else:
             # Live prompt disabled, use static prompt from code
             self._resolved_prompt = self.prompt if self.prompt else ""
-            logger.debug(f"Agent '{self.name}' using static prompt from code (live prompt disabled)")
-        
+            logger.debug(
+                f"Agent '{self.name}' using static prompt from code (live prompt disabled)"
+            )
+
         self.is_multimodal_supported = self.mas.oxy_name_to_oxy[
             self.llm_model
         ].is_multimodal_supported
@@ -425,8 +458,211 @@ class LocalAgent(BaseAgent):
             return str(arguments.get(key, match.group(0)))
 
         # Use resolved prompt (with live prompt support) instead of static prompt
-        prompt_to_use = self._resolved_prompt if self._resolved_prompt else (self.prompt or "")
-        return pattern.sub(replacer, prompt_to_use.strip())
+        prompt_to_use = (
+            self._resolved_prompt if self._resolved_prompt else (self.prompt or "")
+        )
+        rendered = pattern.sub(replacer, prompt_to_use.strip())
+
+        # If the prompt template does not include ${additional_prompt}, still append it.
+        additional = arguments.get("additional_prompt")
+        if (
+            "${additional_prompt}" not in prompt_to_use
+            and isinstance(additional, str)
+            and additional.strip()
+        ):
+            rendered = f"{rendered}\n\n{additional.strip()}"
+
+        return rendered
+
+    def _parse_manual_skill_invocation(
+        self, query: str, registry
+    ) -> tuple[str, str] | None:
+        if not isinstance(query, str):
+            return None
+        q = query.strip()
+        if not q.startswith("/"):
+            return None
+        # Only support the "first token is /skill-name" style.
+        first, *rest = q.split(maxsplit=1)
+        skill_name = first[1:].strip()
+        if not skill_name:
+            return None
+        if not registry or not registry.has_skill(skill_name):
+            return None
+        metadata = registry.get_skill(skill_name)
+        if metadata is not None and getattr(metadata, "user_invocable", True) is False:
+            return None
+        args = rest[0] if rest else ""
+        return (skill_name, args)
+
+    def _is_skill_catalog_query(self, query: str) -> bool:
+        if not isinstance(query, str):
+            return False
+        q = query.strip().lower()
+        if not q:
+            return False
+
+        # English patterns
+        if re.search(r"\bwhat\b.*\bskills?\b", q):
+            return True
+        if re.search(r"\bskills?\b.*\b(do|can)\b.*\bhave\b", q):
+            return True
+        if re.search(r"\blist\b.*\bskills?\b", q):
+            return True
+        if re.search(r"\bavailable\b.*\bskills?\b", q):
+            return True
+
+        # Chinese patterns
+        if "你有什么技能" in q or "有哪些技能" in q or "技能列表" in q:
+            return True
+        if q.startswith("技能") and ("有哪些" in q or "有什么" in q):
+            return True
+
+        return False
+
+    def _append_additional_prompt(self, oxy_request: OxyRequest, text: str) -> None:
+        if not isinstance(text, str) or not text.strip():
+            return
+        base = oxy_request.arguments.get("additional_prompt", "")
+        if not isinstance(base, str):
+            base = str(base)
+        oxy_request.arguments["additional_prompt"] = (base + "\n\n" + text).strip()
+
+    def _maybe_inject_skill_catalog(self, oxy_request: OxyRequest) -> None:
+        if not self.enable_skills or not self.mas:
+            return
+        registry = getattr(self.mas, "skill_registry", None)
+        if not registry:
+            return
+        raw_query = oxy_request.arguments.get("query", "")
+        if not self._is_skill_catalog_query(str(raw_query)):
+            return
+
+        help_text = registry.generate_user_help_section()
+        if not help_text:
+            return
+
+        # For "what skills do you have" queries, avoid selector call and
+        # provide the skill list as context for the agent to answer.
+        oxy_request.set_shared_data(self._skip_skill_selector_shared_key, True)
+        self._append_additional_prompt(
+            oxy_request,
+            (
+                "The user is asking what skills are available. "
+                "Answer by listing the skills below and how to invoke them.\n\n"
+                + help_text
+            ),
+        )
+
+    async def _maybe_activate_skill(self, oxy_request: OxyRequest) -> None:
+        if not self.enable_skills:
+            return
+        if not self.mas:
+            return
+        registry = getattr(self.mas, "skill_registry", None)
+        if not registry:
+            return
+
+        if oxy_request.get_shared_data(self._skip_skill_selector_shared_key):
+            return
+
+        # Prevent repeated activation in nested calls.
+        if oxy_request.get_shared_data(self._active_skill_shared_key):
+            return
+
+        raw_query = oxy_request.arguments.get("query", "")
+
+        selected_skill: str | None = None
+        skill_args: str = ""
+        invocation_source: str = "selector"
+        selector_reason: str = ""
+        selector_confidence: float = 0.0
+
+        manual = self._parse_manual_skill_invocation(raw_query, registry)
+        if manual:
+            selected_skill, skill_args = manual
+            invocation_source = "user"
+            selector_reason = "manual"
+            selector_confidence = 1.0
+            # Remove the /skill-name prefix from the user query passed to the agent.
+            remaining = (skill_args or "").strip()
+            oxy_request.arguments["query"] = remaining or f"Use skill {selected_skill}."
+        else:
+            # Exclude disable-model-invocation skills from selector.
+            skills = []
+            for m in registry.list_skills():
+                if getattr(m, "disable_model_invocation", False):
+                    continue
+                skills.append(m)
+
+            selection = await select_skill(
+                oxy_request=oxy_request,
+                llm_model=self.llm_model,
+                skills=skills,
+                query=str(raw_query),
+                max_candidates=self.skill_selector_max_candidates,
+                min_confidence=self.skill_selector_min_confidence,
+            )
+            selected_skill = selection.selected_skill
+            selector_reason = selection.reason
+            selector_confidence = selection.confidence
+
+        if not selected_skill:
+            return
+
+        # Activate via SkillTool (loads full SKILL.md content).
+        oxy_response = await oxy_request.call(
+            callee="Skill",
+            arguments={
+                "name": selected_skill,
+                "arguments": skill_args,
+                "invocation_source": invocation_source,
+            },
+            is_send_message=False,
+            is_save_history=False,
+        )
+
+        if oxy_response.state is not OxyState.COMPLETED:
+            logger.info(
+                "Skill activation failed: %s",
+                selected_skill,
+                extra={
+                    "trace_id": oxy_request.current_trace_id,
+                    "node_id": oxy_request.node_id,
+                },
+            )
+            return
+
+        injection = str(oxy_response.output or "").strip()
+        env_mods = (oxy_response.extra or {}).get("environment_modifications", {})
+        if injection:
+            base_additional = oxy_request.arguments.get("additional_prompt", "")
+            if not isinstance(base_additional, str):
+                base_additional = str(base_additional)
+            oxy_request.arguments["additional_prompt"] = (
+                base_additional + "\n\n" + injection
+            ).strip()
+
+        # Apply model override (request-scoped) via llm_params.
+        if isinstance(env_mods, dict) and env_mods.get("model"):
+            llm_params = oxy_request.arguments.get("llm_params")
+            if not isinstance(llm_params, dict):
+                llm_params = {}
+            llm_params["model"] = env_mods["model"]
+            oxy_request.arguments["llm_params"] = llm_params
+
+        oxy_request.set_shared_data(
+            self._active_skill_shared_key,
+            {
+                "name": selected_skill,
+                "invocation_source": invocation_source,
+                "selector_reason": selector_reason,
+                "selector_confidence": selector_confidence,
+                "env_mods": env_mods,
+                "skill_version": (oxy_response.extra or {}).get("skill_version"),
+                "skill_author": (oxy_response.extra or {}).get("skill_author"),
+            },
+        )
 
     async def _pre_process(self, oxy_request: OxyRequest) -> OxyRequest:
         """Pre-process request to load conversation history if needed.
@@ -463,6 +699,17 @@ class LocalAgent(BaseAgent):
             OxyRequest: The request with tools_description added to arguments.
         """
         oxy_request = await super()._before_execute(oxy_request)
+
+        # Ensure additional_prompt exists for prompt rendering.
+        oxy_request.arguments["additional_prompt"] = self.additional_prompt
+
+        # If the user asks what skills are available, inject the metadata list.
+        # This also skips selector execution for this request.
+        self._maybe_inject_skill_catalog(oxy_request)
+
+        # Skill selector / activation happens before tool retrieval, so allowed-tools
+        # constraints can affect subsequent tool calls.
+        await self._maybe_activate_skill(oxy_request)
         # get multimodal input
         if self.intent_understanding_agent:
             oxy_response = await oxy_request.call(
@@ -479,10 +726,30 @@ class LocalAgent(BaseAgent):
             llm_tool_desc_list = await self._get_llm_tool_desc_list(
                 oxy_request, oxy_request.get_query()
             )
-        oxy_request.arguments["additional_prompt"] = self.additional_prompt
         oxy_request.arguments[self.tools_placeholder] = "\n\n".join(llm_tool_desc_list)
 
         return oxy_request
+
+    async def _after_execute(self, oxy_response: OxyResponse) -> OxyResponse:
+        oxy_response = await super()._after_execute(oxy_response)
+        oxy_request = oxy_response.oxy_request
+        if not oxy_request:
+            return oxy_response
+        active = oxy_request.get_shared_data(self._active_skill_shared_key)
+        if isinstance(active, dict) and active.get("name"):
+            oxy_response.extra = oxy_response.extra or {}
+            oxy_response.extra.update(
+                {
+                    "skill_name": active.get("name"),
+                    "skill_invocation_source": active.get("invocation_source"),
+                    "skill_selector_reason": active.get("selector_reason"),
+                    "skill_selector_confidence": active.get("selector_confidence"),
+                    "skill_environment_modifications": active.get("env_mods"),
+                    "skill_version": active.get("skill_version"),
+                    "skill_author": active.get("skill_author"),
+                }
+            )
+        return oxy_response
 
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         raise NotImplementedError("This method is not yet implemented")
