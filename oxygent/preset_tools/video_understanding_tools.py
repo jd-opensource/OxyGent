@@ -9,7 +9,7 @@ from oxygent.oxy import FunctionHub
 video_understanding_tools = FunctionHub(name="video_understanding_tools")
 
 # ✅ 设置 API Key（建议改为环境变量）
-dashscope.api_key = "sk-101958a4cc6e42eeb68098b6f8967d29"
+dashscope.api_key = os.getenv("DASHSCOPE_API_KEY")
 
 
 import os
