@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import re
+from pathlib import Path
 from typing import Optional, Tuple
 
 from pydantic import Field
@@ -73,8 +74,21 @@ class SkillAgent(ReActAgent):
             "This makes Codex-style skills (e.g. agent-browser) practical by default."
         ),
     )
+    skill_dirs: Optional[list[str]] = Field(
+        None,
+        description=(
+            "Optional absolute skill directories for this agent only. "
+            "When set, this agent uses only these directories instead of the MAS global registry."
+        ),
+    )
+
+    # Per-agent scoped registry cache (built lazily/at init when skill_dirs is provided).
+    _scoped_skill_registry = None
+    _normalized_skill_dirs = None
 
     async def init(self):
+        # Validate/build scoped registry early so invalid config fails fast at startup.
+        self._ensure_scoped_registry()
         await self._ensure_shell_tools()
         await super().init()
 
@@ -156,7 +170,7 @@ class SkillAgent(ReActAgent):
         return False
 
     def _build_skill_catalog_prompt(self, oxy_request: OxyRequest) -> str:
-        registry = getattr(oxy_request.mas, "skill_registry", None)
+        registry = self._get_effective_registry(oxy_request)
         if not registry:
             return ""
         if not getattr(registry, "metadata_index", None):
@@ -176,7 +190,7 @@ class SkillAgent(ReActAgent):
 
         lines: list[str] = [
             "## Available Skills (metadata only)",
-            "", 
+            "",
             "Invoke manually with: /<skill-name> [task-or-arguments]",
             "(Skill activation is system-driven; do not call the Skill tool directly.)",
             "",
@@ -215,6 +229,79 @@ class SkillAgent(ReActAgent):
 
         return "\n".join(lines)
 
+    def _normalize_skill_dirs(self) -> Optional[list[str]]:
+        raw_dirs = self.skill_dirs
+        if not raw_dirs:
+            return None
+        if not isinstance(raw_dirs, list):
+            raise ValueError(
+                f"SkillAgent[{self.name}] skill_dirs must be a list of absolute paths"
+            )
+
+        normalized: list[str] = []
+        for raw in raw_dirs:
+            if not isinstance(raw, str) or not raw.strip():
+                raise ValueError(
+                    f"SkillAgent[{self.name}] skill_dirs contains an empty path"
+                )
+            p = Path(raw.strip())
+            if not p.is_absolute():
+                raise ValueError(
+                    f"SkillAgent[{self.name}] skill_dirs path must be absolute: {raw}"
+                )
+            if not p.exists():
+                raise ValueError(
+                    f"SkillAgent[{self.name}] skill_dirs path does not exist: {raw}"
+                )
+            if not p.is_dir():
+                raise ValueError(
+                    f"SkillAgent[{self.name}] skill_dirs path is not a directory: {raw}"
+                )
+            resolved = str(p.resolve())
+            if resolved not in normalized:
+                normalized.append(resolved)
+
+        return normalized or None
+
+    def _ensure_scoped_registry(self):
+        normalized = self._normalize_skill_dirs()
+        if not normalized:
+            self._scoped_skill_registry = None
+            self._normalized_skill_dirs = None
+            return None
+
+        if (
+            self._scoped_skill_registry is not None
+            and self._normalized_skill_dirs == normalized
+        ):
+            return self._scoped_skill_registry
+
+        from ..skills import SkillRegistry
+
+        registry = SkillRegistry(skill_dirs=normalized, auto_discover=True)
+
+        self._scoped_skill_registry = registry
+        self._normalized_skill_dirs = normalized
+        return registry
+
+    def _get_effective_registry(self, oxy_request: Optional[OxyRequest] = None):
+        scoped = self._ensure_scoped_registry()
+        if scoped is not None:
+            return scoped
+
+        if oxy_request is not None and getattr(oxy_request, "mas", None) is not None:
+            registry = getattr(oxy_request.mas, "skill_registry", None)
+            if registry is not None:
+                return registry
+
+        return getattr(getattr(self, "mas", None), "skill_registry", None)
+
+    def _get_effective_skill_dirs(self) -> Optional[list[str]]:
+        scoped = self._ensure_scoped_registry()
+        if scoped is None:
+            return None
+        return list(self._normalized_skill_dirs or [])
+
     async def _activate_skill(
         self,
         *,
@@ -226,6 +313,7 @@ class SkillAgent(ReActAgent):
         if not oxy_request.has_oxy("Skill"):
             logger.warning("Skill tool not registered; cannot activate skills")
             return
+        skill_dirs = self._get_effective_skill_dirs()
 
         tool_resp = await oxy_request.call(
             callee="Skill",
@@ -233,6 +321,7 @@ class SkillAgent(ReActAgent):
                 "name": skill_name,
                 "arguments": skill_args,
                 "invocation_source": invocation_source,
+                "skill_dirs": skill_dirs,
             },
             is_send_message=False,
             is_save_history=False,
@@ -254,7 +343,7 @@ class SkillAgent(ReActAgent):
     async def _before_execute(self, oxy_request: OxyRequest) -> OxyRequest:
         oxy_request = await super()._before_execute(oxy_request)
 
-        registry = getattr(oxy_request.mas, "skill_registry", None)
+        registry = self._get_effective_registry(oxy_request)
         if not registry:
             return oxy_request
 
@@ -286,6 +375,15 @@ class SkillAgent(ReActAgent):
         manual = self._parse_manual_invocation(raw_query)
         if manual:
             skill_name, args = manual
+            if not registry.has_skill(skill_name):
+                available = ", ".join(
+                    sorted(s.name for s in registry.iter_skills())
+                ) or "(none)"
+                oxy_request.arguments["_skill_help_output"] = (
+                    f"Skill '{skill_name}' not found in this agent scope. "
+                    f"Available skills: {available}"
+                )
+                return oxy_request
             await self._activate_skill(
                 oxy_request=oxy_request,
                 skill_name=skill_name,

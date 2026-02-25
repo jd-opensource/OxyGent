@@ -6,7 +6,8 @@ it into the agent's context along with environment modifications.
 """
 
 import logging
-from typing import Any, Dict
+from pathlib import Path
+from typing import Any, ClassVar, Dict, List, Tuple
 
 from pydantic import Field
 
@@ -51,6 +52,9 @@ class SkillTool(BaseTool):
         exclude=True,
     )
 
+    # Cache scoped registries by normalized directory tuple.
+    _scoped_registry_cache: ClassVar[Dict[Tuple[str, ...], Any]] = {}
+
     input_schema: Dict[str, Any] = {
         "type": "object",
         "properties": {
@@ -65,6 +69,11 @@ class SkillTool(BaseTool):
             "invocation_source": {
                 "type": "string",
                 "description": "Invocation source: user | selector | model",
+            },
+            "skill_dirs": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Optional absolute skill directories for scoped resolution",
             },
         },
         "required": ["name"],
@@ -93,6 +102,7 @@ class SkillTool(BaseTool):
         skill_name = oxy_request.arguments.get("name")
         skill_args = oxy_request.arguments.get("arguments")
         invocation_source = oxy_request.arguments.get("invocation_source", "model")
+        scoped_skill_dirs = oxy_request.arguments.get("skill_dirs")
         if not isinstance(invocation_source, str) or not invocation_source.strip():
             invocation_source = "model"
         invocation_source = invocation_source.strip()
@@ -108,7 +118,12 @@ class SkillTool(BaseTool):
 
         # Get skill registry from request's mas if not set
         registry = self.skill_registry
-        if not registry:
+        if scoped_skill_dirs is not None:
+            try:
+                registry = self._get_scoped_registry(scoped_skill_dirs)
+            except Exception as e:
+                return OxyResponse(state=OxyState.FAILED, output=str(e))
+        elif not registry:
             registry = getattr(oxy_request.mas, "skill_registry", None)
 
         if not registry:
@@ -205,6 +220,45 @@ class SkillTool(BaseTool):
         """
         self.skill_registry = registry
 
+    @classmethod
+    def _normalize_skill_dirs(cls, skill_dirs: Any) -> List[str]:
+        if not isinstance(skill_dirs, list):
+            raise ValueError("skill_dirs must be a list of absolute directory paths")
+        if not skill_dirs:
+            raise ValueError("skill_dirs must not be empty")
+
+        normalized: list[str] = []
+        for raw in skill_dirs:
+            if not isinstance(raw, str) or not raw.strip():
+                raise ValueError("skill_dirs contains an empty path")
+            p = Path(raw.strip())
+            if not p.is_absolute():
+                raise ValueError(f"skill_dirs path must be absolute: {raw}")
+            if not p.exists():
+                raise ValueError(f"skill_dirs path does not exist: {raw}")
+            if not p.is_dir():
+                raise ValueError(f"skill_dirs path is not a directory: {raw}")
+            resolved = str(p.resolve())
+            if resolved not in normalized:
+                normalized.append(resolved)
+
+        if not normalized:
+            raise ValueError("skill_dirs must not be empty")
+        return normalized
+
+    @classmethod
+    def _get_scoped_registry(cls, skill_dirs: Any):
+        normalized = cls._normalize_skill_dirs(skill_dirs)
+        key = tuple(normalized)
+        if key in cls._scoped_registry_cache:
+            return cls._scoped_registry_cache[key]
+
+        from .skill_registry import SkillRegistry
+
+        registry = SkillRegistry(skill_dirs=list(key), auto_discover=True)
+        cls._scoped_registry_cache[key] = registry
+        return registry
+
     def _set_desc_for_llm(self):
         """Generate LLM-friendly description."""
         self.desc_for_llm = f"""
@@ -214,4 +268,5 @@ class SkillTool(BaseTool):
  - name: string, The name of the skill to invoke (required)
  - arguments: string, Optional argument string passed to the skill
  - invocation_source: string, Invocation source (user|selector|model)
+ - skill_dirs: string[], Optional absolute directories for scoped skill resolution
  """

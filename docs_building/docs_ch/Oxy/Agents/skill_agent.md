@@ -150,6 +150,52 @@
 
 因此：如果你在项目里提供了 `.claude/skills/skill-creator`（或 `.oxygent/skills/skill-creator`），将覆盖 `~/.claude/skills` / `~/.oxygent/skills` 里的同名 skill，以及内置 preset 版本。
 
+## 缓存与目录设计
+
+这部分说明 `SkillAgent`/`SkillTool` 的缓存与目录解析策略，避免把它误解为“磁盘缓存”。
+
+### 1）目录解析策略
+
+- **默认模式（未配置 `skill_dirs`）**：使用 MAS 全局 `SkillRegistry.DEFAULT_SKILL_DIRS`，优先级从低到高为：
+  1. `oxygent/preset_skills/`
+  2. `~/.oxygent/skills/`
+  3. `~/.claude/skills/`
+  4. `.oxygent/skills/`
+  5. `.claude/skills/`
+- **按 agent 隔离模式（配置 `skill_dirs`）**：`SkillAgent` 仅从该 agent 的绝对路径目录列表发现 skill，不再读取默认目录链。
+- **空目录行为**：目录存在即可通过初始化；空目录表示“当前无可用 skill”，不会自动回退默认目录。
+
+### 2）缓存层级（均为进程内内存缓存）
+
+| 层级 | 位置 | Key | 内容 | 作用域 |
+|---|---|---|---|---|
+| 元数据索引 | `SkillRegistry.metadata_index` | `skill_name` | `name/description/skill_path` 等 metadata | 单个 `SkillRegistry` 实例 |
+| 技能全文缓存 | `SkillRegistry._content_cache` | `skill_name` | 解析后的 `SkillContent`（含 resources） | 单个 `SkillRegistry` 实例 |
+| Agent scoped registry 缓存 | `SkillAgent._scoped_skill_registry` + `_normalized_skill_dirs` | 归一化后的目录列表 | `SkillRegistry` 实例 | 单个 `SkillAgent` 实例 |
+| Tool scoped registry 缓存 | `SkillTool._scoped_registry_cache` | `tuple(normalized_skill_dirs)` | `SkillRegistry` 实例 | 进程级（`SkillTool` 类级） |
+
+> 以上缓存都在内存中，不会写入 `cache_dir/` 或其它磁盘目录。
+
+### 3）生命周期与失效策略
+
+- `SkillRegistry`：
+  - `discover_all()`：重建 metadata 索引（不加载全文）。
+  - `load_full_content()`：首次加载技能全文后写入 `_content_cache`。
+  - `reload()`：清空 `_content_cache` 并重新 discover。
+- `SkillAgent` scoped 缓存：
+  - 首次使用或 `init()` 时按 `skill_dirs` 构建。
+  - 当 `skill_dirs` 发生变化时，会按新目录重建 scoped registry。
+- `SkillTool` scoped 缓存：
+  - 相同目录 tuple 会复用同一 `SkillRegistry`（减少重复 discover）。
+  - 默认无 TTL；进程重启后自然清空。
+  - 如开发态需要手动清理，可执行 `SkillTool._scoped_registry_cache.clear()`。
+
+### 4）设计取舍
+
+- **性能**：通过 metadata-only + 按需全文加载，避免把所有 `SKILL.md` 一次性塞入上下文。
+- **隔离**：`skill_dirs` 让不同 `SkillAgent` 在同一 MAS 内可使用不同技能集合。
+- **一致性**：同名冲突在同一 registry 内遵循“后发现覆盖先发现”规则，目录优先级可预测。
+
 
 ## 手动激活语法
 
@@ -195,6 +241,30 @@
 | `selector_min_confidence` | float | `0.6` | 自动激活阈值 |
 | `selector_llm_model` | str\|None | `None` | selector 用的 LLM，默认用 agent 的 `llm_model` |
 | `enable_shell_tools` | bool | `True` | 是否默认启用 `shell_tools`（`run_shell_command`），用于执行技能工作流中的本地命令；如需关闭可设为 `False`，或通过 `except_tools` 禁用具体命令 |
+| `skill_dirs` | list[str]\|None | `None` | 可选的“agent 级技能目录白名单”（绝对路径）。配置后仅从这些目录发现技能；未配置时沿用 MAS 全局 `SkillRegistry` 默认规则 |
+
+### `skill_dirs` 行为说明（按 agent 隔离）
+
+- **未配置 `skill_dirs`**：行为不变，继续使用 MAS 全局 registry（默认 `.claude/.oxygent + preset` 规则）。
+- **配置 `skill_dirs`**：仅使用该 agent 的目录列表发现技能，不再读取默认目录。
+- **严格校验**：每个目录必须是绝对路径、必须存在且为目录；否则在初始化时抛错并阻止启动。
+- **空目录允许**：目录存在即可通过初始化；如果目录中暂无 skill，后续表现为“该 agent 当前无可用 skill”。
+
+示例（同一 MAS 中隔离两个 SkillAgent）：
+
+```python
+oxy.SkillAgent(
+    name="agent_a",
+    llm_model="default_llm",
+    skill_dirs=["/abs/path/to/skills/a"],
+)
+
+oxy.SkillAgent(
+    name="agent_b",
+    llm_model="default_llm",
+    skill_dirs=["/abs/path/to/skills/b"],
+)
+```
 
 
 ## 使用示例
@@ -202,7 +272,9 @@
 ### 1）命令行对话式 Demo
 
 ```bash
-python examples/agents/demo_skill_agent.py
+python examples/agents/demo_skill_agent.py \
+  --agent-a-skill-dir /abs/path/to/skills/a \
+  --agent-b-skill-dir /abs/path/to/skills/b
 ```
 
 ### 1.1）skill-creator + agent-browser Demo（推荐）
@@ -214,7 +286,10 @@ python examples/agents/demo_skill_creator.py
 ### 2）Web 对话（可选）
 
 ```bash
-python examples/agents/demo_skill_agent.py --web
+python examples/agents/demo_skill_agent.py \
+  --agent-a-skill-dir /abs/path/to/skills/a \
+  --agent-b-skill-dir /abs/path/to/skills/b \
+  --web
 ```
 
 ### 3）环境变量
