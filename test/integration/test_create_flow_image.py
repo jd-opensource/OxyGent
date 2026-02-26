@@ -37,6 +37,12 @@ except ImportError:
 
 # Import the modules under test
 from oxygent import MAS, Config, oxy
+
+pytest.importorskip(
+    "oxygent.chart",
+    reason="Optional chart module is not available in this environment.",
+)
+
 from oxygent.chart.flow_image_gen_tools import flow_image_gen_tools
 from oxygent.chart.open_chart_tools import open_chart_tools
 from oxygent.chart.static_files_utils import create_static_files

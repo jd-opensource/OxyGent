@@ -400,7 +400,7 @@ class ReActAgent(LocalAgent):
                         "trust_mode" in llm_response.output
                         and llm_response.output["trust_mode"] == 1
                     ):
-                        result_payload = observation.to_str(is_prefix_included=False)
+                        result_payload = observation.to_str(is_prefix_included=True)
                         return OxyResponse(
                             state=OxyState.COMPLETED,
                             output=result_payload,

@@ -242,3 +242,7 @@ pyproject.toml*
 cache_dir/
 local_file/
 deployment/
+
+# 临时prompts
+temp_task/
+langgraph_a2a/

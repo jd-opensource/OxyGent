@@ -5,12 +5,31 @@ import os
 
 from oxygent import MAS, oxy
 
+
+def _has_http_llm_env() -> bool:
+    return bool(os.getenv("DEFAULT_LLM_BASE_URL") and os.getenv("DEFAULT_LLM_MODEL_NAME"))
+
+
+async def _mock_parallel_output(_oxy_request):
+    return (
+        "### Comprehensive Summary (Parallel)\n"
+        "1. This is a comprehensive summary produced by a parallel expert panel.\n\n"
+        "### Technical\n- Feasibility: High\n- Notes: Architecture and integration are straightforward.\n\n"
+        "### Business\n- Value: Strong\n- Notes: Clear ROI and customer impact.\n\n"
+        "### Risk\n- Level: Medium\n- Notes: Manageable risks with mitigations.\n\n"
+        "### Legal\n- Compliance: Consider privacy and IP.\n"
+    )
+
 oxy_space = [
-    oxy.HttpLLM(
-        name="default_llm",
-        api_key=os.getenv("DEFAULT_LLM_API_KEY"),
-        base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
-        model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+    (
+        oxy.HttpLLM(
+            name="default_llm",
+            api_key=os.getenv("DEFAULT_LLM_API_KEY"),
+            base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
+            model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
+        )
+        if _has_http_llm_env()
+        else oxy.MockLLM(name="default_llm", func_mock_process=_mock_parallel_output)
     ),
     # Technical expert - Detailed technical feasibility analysis framework
     oxy.ChatAgent(
@@ -218,7 +237,11 @@ async def main():
 
 
 async def test():
-    async with MAS(oxy_space=oxy_space) as mas:
+    test_oxy_space = [
+        oxy.MockLLM(name="default_llm", func_mock_process=_mock_parallel_output)
+    ] + oxy_space[1:]
+
+    async with MAS(oxy_space=test_oxy_space) as mas:
         query = """
       Project Background:
          We are a mid-sized e-commerce company with a customer service team of 50 people handling over 5,000 inquiries per day. Main types of inquiries include:
@@ -249,7 +272,8 @@ async def test():
 
          Please conduct a comprehensive evaluation and give a clear recommendation on whether to proceed with the project.
       """
-        await mas.start_web_service(first_query=query)
+        oxy_response = await mas.chat_with_agent(payload={"query": query})
+        print("LLM: ", oxy_response.output)
 
 
 if __name__ == "__main__":

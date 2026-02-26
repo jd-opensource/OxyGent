@@ -15,6 +15,9 @@
 + [预设提示词](./1_3_select_prompt.md)
 + [选择智能体种类](./1_4_select_agent.md)
 
+## 架构设计
++ [OxyGent 架构设计与核心理念](./17_architecture_design.md)
+
 ## 工具
 + [注册一个工具](./2_register_single_tool.md)*
 + [使用MCP开源工具](./2_3_use_opensource_tools.md)*
