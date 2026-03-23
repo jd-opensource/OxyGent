@@ -1,6 +1,12 @@
 ---
-name: OxyGent Framework Explorer
+name: analyzing-oxygent
 description: Explore and understand the OxyGent framework structure, components, and implementation patterns.
+trigger:
+  when:
+    - user asks about OxyGent framework internals
+    - user wants to explore the codebase structure
+  not_when:
+    - user asks about general programming unrelated to OxyGent
 ---
 
 # OxyGent Framework Explorer
@@ -46,7 +52,7 @@ The core implementation resides in the `oxygent/` directory:
 ls oxygent/oxy/agents/
 
 # Skill system components
-ls oxygent/oxy/skills/
+ls oxygent/skills/
 
 # Preset tool definitions
 ls oxygent/oxy/preset_tools/
@@ -83,9 +89,3 @@ When investigating OxyGent-related questions:
 | View a source file | `cat oxygent/oxy/agents/<name>.py` |
 | Search class definitions | `grep -r "class <Name>" oxygent/ --include="*.py"` |
 | Explore directory tree | `tree -L 2 oxygent/oxy/` |
-
-## Additional Resources
-
-- Project README: `README.md`
-- Documentation: `docs/` directory
-- Configuration: `config.json`

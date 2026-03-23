@@ -22,6 +22,7 @@ from .function_tools.function_tool import FunctionTool
 from .llms import HttpLLM, LocalLLM, MockLLM, OpenAILLM
 from .mcp_tools import MCPTool, SSEMCPClient, StdioMCPClient, StreamableMCPClient
 from .agents.skill_agent import SkillAgent
+from .skill_tools import SkillTool
 
 __all__ = [
     "Oxy",
@@ -51,4 +52,5 @@ __all__ = [
     "BankClient",
     "BankTool",
     "SkillAgent",
+    "SkillTool",
 ]

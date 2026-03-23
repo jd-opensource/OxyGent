@@ -12,13 +12,13 @@ async def main():
             base_url=os.getenv("DEFAULT_LLM_BASE_URL"),
             model_name=os.getenv("DEFAULT_LLM_MODEL_NAME"),
         ),
-        preset_tools.file_tools,
         preset_tools.shell_tools,
         oxy.SkillAgent(
             name="skill_agent",
             llm_model="default_llm",
-            tools=["view_text_file", "execute_shell_command"],  # required
-            skills=[".oxygent/skills"],  # A single skill folder or parent directory
+            tools=["execute_shell_command"],  # view_text_file no longer needed
+            skills=[".oxygent/skills"],  # Custom skill paths (skill tool auto-registered)
+            # enable_project_skills=True,  # Also scans .oxygent/skills/ by default
         ),
     ]
 

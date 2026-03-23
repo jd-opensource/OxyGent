@@ -63,6 +63,70 @@ def chunk_list(lst, chunk_size=2):
     return [lst[i : i + chunk_size] for i in range(0, len(lst), chunk_size)]
 
 
+def extract_json_blocks(text: str) -> list:
+    """Extract all JSON objects from text.
+
+    Supports:
+    - Single ```json block with one object → [dict]
+    - Single ```json block with array → [dict, dict, ...]
+    - Multiple ```json blocks → [dict, dict, ...]
+    - Fallback: bare {..} extraction → [dict]
+
+    Raises:
+        json.JSONDecodeError: If no valid JSON can be parsed.
+    """
+    blocks = re.findall(r"```[\n]*json(.*?)```", text, re.DOTALL)
+
+    if len(blocks) == 1:
+        parsed = json.loads(blocks[0].strip())
+        if isinstance(parsed, list):
+            return parsed
+        return [parsed]
+
+    if len(blocks) > 1:
+        results = []
+        for block in blocks:
+            parsed = json.loads(block.strip())
+            if isinstance(parsed, list):
+                results.extend(parsed)
+            else:
+                results.append(parsed)
+        return results
+
+    # Fallback: extract the first balanced {...} object
+    start = text.find("{")
+    if start == -1:
+        raise json.JSONDecodeError("No JSON object found", text, 0)
+    depth = 0
+    in_string = False
+    escape_next = False
+    end = -1
+    for i in range(start, len(text)):
+        ch = text[i]
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\":
+            if in_string:
+                escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end == -1:
+        raise json.JSONDecodeError("No balanced JSON object found", text, 0)
+    return [json.loads(text[start : end + 1])]
+
+
 def extract_first_json(text):
     matches = re.findall(r"```[\n]*json(.*?)```", text, re.DOTALL)
     json_texts = [match.strip() for match in matches]

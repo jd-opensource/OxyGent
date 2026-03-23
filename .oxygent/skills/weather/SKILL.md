@@ -1,6 +1,15 @@
 ---
 name: weather
 description: Retrieve real-time weather data from public weather services without requiring API authentication.
+trigger:
+  when:
+    - user asks about weather, temperature, forecast
+    - user mentions a city and wants current conditions
+  not_when:
+    - user asks about geography or climate history
+argument-hint: "<city name>"
+required-tools:
+  - execute_shell_command
 ---
 
 # Weather Data Retrieval
@@ -9,7 +18,7 @@ description: Retrieve real-time weather data from public weather services withou
 
 This capability enables fetching current weather conditions and forecasts through publicly accessible weather endpoints.
 
-When handling weather-related inquiries, this skill offers multiple query approaches to obtain meteorological information.
+When handling weather-related inquiries for $ARGUMENTS, this skill offers multiple query approaches to obtain meteorological information.
 
 ## Available Query Methods
 
@@ -18,13 +27,13 @@ When handling weather-related inquiries, this skill offers multiple query approa
 A straightforward approach using console commands:
 
 ```bash
-curl -s "wttr.in/Beijing?format=3"
+curl -s "wttr.in/$ARGUMENTS?format=3"
 ```
 
 For detailed output with humidity and wind information:
 
 ```bash
-curl -s "wttr.in/Shanghai?format=%l:+%c+%t+%h+%w"
+curl -s "wttr.in/$ARGUMENTS?format=%l:+%c+%t+%h+%w"
 ```
 
 ### Method 2: Structured Data Query
@@ -43,5 +52,3 @@ This returns structured weather metrics including temperature, wind speed, and w
 - Location names should be URL-encoded for text queries
 - Data availability depends on the respective service providers
 - Users should verify compliance with each provider's terms of use
-
-

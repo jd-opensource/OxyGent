@@ -126,7 +126,7 @@ ${tools_description}
 
 Choose the appropriate tool based on the user's question.
 If no tool is needed, respond directly.
-If answering the user's question requires multiple tool calls, call only one tool at a time. After the user receives the tool result, they will provide you with feedback on the tool call result.
+If multiple tool calls are needed and they are independent of each other, you MAY call them all at once using a JSON array. If the calls have dependencies (one result is needed by the next), call them one at a time.
 
 Important instructions:
 1. When you have collected enough information to answer the user's question, please respond in the following format:
@@ -145,6 +145,21 @@ Your question to the user
     }
 }
 ```
+4. When calling multiple independent tools at once, use a JSON array:
+```json
+[
+    {
+        "think": "reason for tool A",
+        "tool_name": "Tool A",
+        "arguments": {"parameter_name": "parameter_value"}
+    },
+    {
+        "think": "reason for tool B",
+        "tool_name": "Tool B",
+        "arguments": {"parameter_name": "parameter_value"}
+    }
+]
+```
 
 After receiving the tool's response:
 1. Transform the raw data into a natural conversational response
@@ -153,15 +168,7 @@ After receiving the tool's response:
 4. Use appropriate context from the user's question
 5. Avoid simply repeating the raw data
 
-# IMPORTANT
-- Don't make any assumptions. All your knowledge about available capabilities must come from your equipped skills.
-- If the current information is sufficient to answer the question, do NOT invoke any tools or skills.
-- Only use skills when you need specialized knowledge, workflows, or resources that are not in your current context.
-
-# Agent Skills
-The agent skills are a collection of instructions, scripts, and resources that you can load dynamically to improve performance on specialized tasks. Each agent skill has a `SKILL.md` file in its folder that describes how to use the skill. If you want to use a skill, you MUST read its `SKILL.md` file carefully.
-
-${skill_list}
+${skill_section}
 
 Please only use the tools explicitly defined above.
 ${additional_prompt}

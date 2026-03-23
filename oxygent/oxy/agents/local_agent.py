@@ -164,7 +164,8 @@ class LocalAgent(BaseAgent):
                         continue
                     self.add_permitted_tool(tool_name)
             else:
-                logger.warning(f"Unknown tool type: {type(oxy)}")
+                # Generic BaseTool subclass (e.g., SkillTool)
+                self.add_permitted_tool(oxy_name)
         for oxy_name in set(self.banks):
             if oxy_name not in self.mas.oxy_name_to_oxy:
                 raise Exception(f"bank [{oxy_name}] not exists.")

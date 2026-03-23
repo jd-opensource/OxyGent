@@ -25,5 +25,6 @@ aioresponses==0.7.8
 jupyter_client==8.6.3
 ipykernel==6.30.1
 pytesseract==0.3.13
+PyYAML==6.0.2
 pytest==8.4.2
 pytest-asyncio==1.2.0
