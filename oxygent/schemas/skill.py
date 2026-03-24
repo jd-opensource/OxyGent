@@ -52,7 +52,8 @@ class SkillTrigger(BaseModel):
             return cls(when=[value])
         if isinstance(value, dict):
             when = value.get("when", [])
-            not_when = value.get("not_when", value.get("not-when", []))
+            # Accept not_when / not-when / unless as aliases
+            not_when = value.get("not_when", value.get("not-when", value.get("unless", [])))
             # Normalize single string to list
             if isinstance(when, str):
                 when = [when]
@@ -90,9 +91,14 @@ class SkillMetadata(BaseModel):
         default_factory=list,
         description="Tools that this skill depends on (auto-injected into agent's tool list)",
     )
+    argument_hint: Optional[str] = Field(
+        None,
+        description="Hint describing the expected argument format for $ARGUMENTS placeholder",
+    )
 
     # Internal cache fields (not serialized, per-instance via PrivateAttr)
     _content_cache: Optional[str] = PrivateAttr(default=None)
+    _mtime: Optional[float] = PrivateAttr(default=None)
     _has_arguments_template: Optional[bool] = PrivateAttr(default=None)
 
     @property
@@ -117,8 +123,13 @@ class SkillMetadata(BaseModel):
         return self._has_arguments_template
 
     def _ensure_cache(self) -> None:
-        """Load and cache the skill body from disk (load-once)."""
-        if self._content_cache is not None:
+        """Load and cache the skill body from disk. Re-loads when file mtime changes."""
+        try:
+            current_mtime = self.skill_path.stat().st_mtime
+        except OSError:
+            current_mtime = None
+
+        if self._content_cache is not None and current_mtime == self._mtime:
             return
 
         raw = self.skill_path.read_text(encoding="utf-8")
@@ -138,12 +149,13 @@ class SkillMetadata(BaseModel):
                 body = "".join(lines)
 
         self._content_cache = body.strip()
+        self._mtime = current_mtime
         self._has_arguments_template = "$ARGUMENTS" in self._content_cache
 
     def load_content(self, arguments: str = "") -> str:
         """Load the markdown body from SKILL.md, stripping frontmatter.
 
-        Uses cached content (auto-refreshed when file mtime changes).
+        Re-reads the file when mtime changes (hot-reload support).
         Replaces $ARGUMENTS with the provided arguments string.
 
         Args:
@@ -163,6 +175,8 @@ class SkillMetadata(BaseModel):
     def to_prompt_entry(self) -> str:
         """Format for system prompt injection with trigger conditions."""
         entry = f"- **{self.name}**: {self.description}"
+        if self.argument_hint:
+            entry += f" (args: `{self.argument_hint}`)"
         if self.trigger:
             trigger_block = self.trigger.to_prompt_block()
             if trigger_block:
@@ -180,6 +194,7 @@ class SkillMetadata(BaseModel):
             "namespace": self.namespace,
             "disable_model_invocation": self.disable_model_invocation,
             "required_tools": self.required_tools,
+            "argument_hint": self.argument_hint,
         }
         if self.trigger:
             result["trigger"] = self.trigger.model_dump()
@@ -212,6 +227,9 @@ class SkillMetadata(BaseModel):
         if isinstance(required_tools, str):
             required_tools = [required_tools]
 
+        # Parse argument_hint (supports hyphenated key)
+        argument_hint = frontmatter.get("argument-hint", frontmatter.get("argument_hint"))
+
         return cls(
             name=frontmatter["name"],
             description=frontmatter["description"],
@@ -222,6 +240,7 @@ class SkillMetadata(BaseModel):
             author=frontmatter.get("author"),
             disable_model_invocation=bool(disable_model_invocation),
             required_tools=required_tools if isinstance(required_tools, list) else [],
+            argument_hint=str(argument_hint) if argument_hint is not None else None,
         )
 
     def __repr__(self) -> str:

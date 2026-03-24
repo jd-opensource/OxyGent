@@ -120,6 +120,24 @@ ${hello_terminal}${terminal_history}
 """
 
 
+SYSTEM_PROMPT_CONTEXT_SUMMARY = """
+You are a context compressor. The agent below has been running a multi-step ReAct loop
+and its working memory is approaching the context window limit.
+
+Your job: compress the reasoning trace into a compact summary that preserves all
+information needed to continue the task, including:
+- What has been done so far (tools called, results received)
+- Key facts and data extracted from tool results
+- What still needs to be done
+- Any errors or retries that occurred
+
+Output ONLY the compressed summary. Do not add commentary. Be concise but complete.
+Keep all numbers, file paths, identifiers, and other precise values.
+
+Reasoning trace to compress:
+"""
+
+
 SYSTEM_PROMPT_SKILLS = """
 You are a helpful assistant that can use these tools:
 ${tools_description}
@@ -169,6 +187,17 @@ After receiving the tool's response:
 5. Avoid simply repeating the raw data
 
 ${skill_section}
+
+## Skill Invocation Rules
+
+When a skill's TRIGGER conditions match the current request:
+1. You MUST invoke the skill tool FIRST, before generating any answer
+2. After receiving the `<skill-instructions>` response, follow those instructions as your primary directive for the remainder of the task
+3. If a skill has `DO NOT TRIGGER` conditions that match, skip that skill even if TRIGGER conditions also match
+4. If multiple skill triggers match and their invocations are independent, call them all at once using a JSON array
+5. If no skill trigger matches, answer directly using your own knowledge and available tools
+
+Always-active skills (shown in the "Always-Active Skills" section above, if present) are pre-loaded — do NOT call the skill tool for them; just follow their embedded instructions.
 
 Please only use the tools explicitly defined above.
 ${additional_prompt}

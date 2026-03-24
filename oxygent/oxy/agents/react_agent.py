@@ -14,7 +14,7 @@ from typing import Callable, Optional
 from pydantic import Field
 
 from ...config import Config
-from ...prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_RETRIEVAL
+from ...prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_CONTEXT_SUMMARY, SYSTEM_PROMPT_RETRIEVAL
 from ...schemas import (
     ExecResult,
     LLMResponse,
@@ -80,6 +80,14 @@ class ReActAgent(LocalAgent):
 
     trust_mode: bool = Field(False, description="Enable trust mode for direct results")
 
+    context_window_ratio: float = Field(
+        0.9,
+        description=(
+            "Fraction of the LLM's max_tokens at which react_memory is auto-compressed. "
+            "E.g. 0.9 means compress when context reaches 90% of the window."
+        ),
+    )
+
     func_parse_llm_response: Optional[Callable[[str, OxyRequest], LLMResponse]] = Field(
         None, exclude=True, description="Function to parse LLM output"
     )
@@ -120,6 +128,14 @@ class ReActAgent(LocalAgent):
         if not response or len(response.strip()) == 0:
             return "The response should not be empty. Please provide a more detailed and helpful answer."
         return None
+
+    def _build_instruction_for_round(self, oxy_request: OxyRequest) -> str:
+        """Build the system instruction for the current ReAct round.
+
+        Subclasses (e.g. SkillAgent) can override this to apply per-round
+        modifications such as context eviction filtering.
+        """
+        return self._build_instruction(oxy_request.arguments)
 
     async def _get_history(
         self, oxy_request: OxyRequest, is_get_user_master_session=False
@@ -293,6 +309,112 @@ class ReActAgent(LocalAgent):
                 state=LLMState.ERROR_PARSE, output=e, ori_response=ori_response
             )
 
+    def _get_llm_max_tokens(self) -> int:
+        """Return effective max_tokens for the agent's LLM.
+
+        Priority: LLM instance llm_params → Config global default.
+        """
+        try:
+            llm = self.mas.oxy_name_to_oxy.get(self.llm_model)
+            if llm is not None and hasattr(llm, "llm_params"):
+                v = llm.llm_params.get("max_tokens")
+                if v:
+                    return int(v)
+        except Exception:
+            pass
+        return int(Config.get_llm_config().get("max_tokens", 4096))
+
+    @staticmethod
+    def _estimate_tokens(messages: list) -> int:
+        """Rough token estimate: total chars ÷ 4 (language-agnostic heuristic)."""
+        total = 0
+        for msg in messages:
+            content = msg.get("content", "")
+            if isinstance(content, str):
+                total += len(content)
+            elif isinstance(content, list):
+                for part in content:
+                    if isinstance(part, dict):
+                        total += len(str(part.get("text", part.get("content", ""))))
+        return max(total // 4, 1)
+
+    async def _maybe_compress_react_memory(
+        self,
+        react_memory: Memory,
+        oxy_request: OxyRequest,
+        fixed_tokens: int,
+    ) -> Memory:
+        """Compress react_memory when context approaches the window limit.
+
+        Triggers when (fixed_tokens + react_memory tokens) > context_window_ratio
+        × max_tokens. Calls the LLM to produce a compact summary of the reasoning
+        trace and replaces react_memory with a single compressed message.
+
+        Args:
+            react_memory: Current ReAct working memory.
+            oxy_request: Active request (used to call the LLM).
+            fixed_tokens: Estimated tokens for system + short_memory + query.
+
+        Returns:
+            Possibly-compressed Memory object.
+        """
+        if not react_memory.messages:
+            return react_memory
+
+        max_tokens = self._get_llm_max_tokens()
+        threshold = int(max_tokens * self.context_window_ratio)
+        react_tokens = self._estimate_tokens(react_memory.to_dict_list())
+
+        if fixed_tokens + react_tokens <= threshold:
+            return react_memory
+
+        logger.info(
+            f"[ReActAgent] Context ~{fixed_tokens + react_tokens} tokens "
+            f"exceeds {int(self.context_window_ratio * 100)}% of window "
+            f"({max_tokens}). Compressing react_memory ({react_tokens} tokens).",
+            extra={
+                "trace_id": oxy_request.current_trace_id,
+                "node_id": oxy_request.node_id,
+            },
+        )
+
+        trace_text = "\n".join(
+            f"[{msg.role}]: {msg.content}" for msg in react_memory.messages
+        )
+        summary_messages = [
+            Message.system_message(SYSTEM_PROMPT_CONTEXT_SUMMARY.strip()),
+            Message.user_message(trace_text),
+        ]
+
+        try:
+            resp = await oxy_request.call(
+                callee=self.llm_model,
+                arguments={"messages": [m.to_dict() for m in summary_messages]},
+            )
+            compressed = Memory()
+            compressed.add_message(
+                Message.user_message(f"[Compressed reasoning trace]\n{resp.output}")
+            )
+            compressed_tokens = self._estimate_tokens(compressed.to_dict_list())
+            logger.info(
+                f"[ReActAgent] Compression done: "
+                f"{react_tokens} → {compressed_tokens} tokens",
+                extra={
+                    "trace_id": oxy_request.current_trace_id,
+                    "node_id": oxy_request.node_id,
+                },
+            )
+            return compressed
+        except Exception as e:
+            logger.warning(
+                f"[ReActAgent] Compression failed, keeping original: {e}",
+                extra={
+                    "trace_id": oxy_request.current_trace_id,
+                    "node_id": oxy_request.node_id,
+                },
+            )
+            return react_memory
+
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         """Execute the ReAct reasoning and acting loop.
 
@@ -309,15 +431,25 @@ class ReActAgent(LocalAgent):
         react_memory = Memory()
         for current_round in range(self.max_react_rounds + 1):
             # Build complete message context: instruction + short memory + query + react memory
+            instruction_msg = Message.system_message(
+                self._build_instruction_for_round(oxy_request)
+            )
+            short_msgs = Message.dict_list_to_messages(oxy_request.get_short_memory())
+            query_msg = Message.user_message(oxy_request.get_query())
+
+            # Estimate fixed (non-react) token cost so compression knows headroom
+            fixed_msgs = [instruction_msg.to_dict()] + [m.to_dict() for m in short_msgs] + [query_msg.to_dict()]
+            fixed_tokens = self._estimate_tokens(fixed_msgs)
+
+            # Auto-compress react_memory if context is near the window limit
+            react_memory = await self._maybe_compress_react_memory(
+                react_memory, oxy_request, fixed_tokens
+            )
+
             temp_memory = Memory()
-            temp_memory.add_message(
-                Message.system_message(self._build_instruction(oxy_request.arguments))
-            )
-            temp_memory.add_messages(
-                Message.dict_list_to_messages(oxy_request.get_short_memory())
-            )
-            # Add current query and ReAct history
-            temp_memory.add_message(Message.user_message(oxy_request.get_query()))
+            temp_memory.add_message(instruction_msg)
+            temp_memory.add_messages(short_msgs)
+            temp_memory.add_message(query_msg)
             temp_memory.add_messages(react_memory.messages)
 
             full_memory = temp_memory.to_dict_list()

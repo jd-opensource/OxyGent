@@ -43,7 +43,7 @@ class SkillTool(BaseTool):
             "properties": {
                 "skill": {
                     "type": "string",
-                    "description": "The skill name to invoke (e.g., 'weather', 'dongx:d2c-s')",
+                    "description": "The skill name to invoke",
                 },
                 "args": {
                     "type": "string",

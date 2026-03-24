@@ -6,6 +6,7 @@ Features:
     - Dynamic skill_section prompt construction
     - Skill dependency (required_tools) auto-injection
     - Pre/post invocation hooks via SkillRegistry
+    - Context eviction: model can drop tools/skills mid-task to save tokens
 
 Usage:
     >>> oxy_space = [
@@ -29,6 +30,11 @@ from ...prompts import SYSTEM_PROMPT_SKILLS
 from ...schemas import LLMResponse, LLMState, OxyRequest
 from ...skills.skill_registry import SkillRegistry
 from ...utils.common_utils import extract_json_blocks
+from ..skill_tools.context_eviction_tool import (
+    ContextEvictionTool,
+    get_evicted_skills,
+    get_evicted_tools,
+)
 from ..skill_tools.skill_tool import SkillTool
 from .react_agent import ReActAgent
 
@@ -51,10 +57,22 @@ class SkillAgent(ReActAgent):
     """
 
     SKILL_TOOL_NAME: str = "skill"
+    EVICTION_TOOL_NAME: str = "drop_context"
 
     skills: Optional[List[str]] = Field(
         default=None,
         description="List of skill directory paths to load skills from.",
+    )
+    enable_project_skills: bool = Field(
+        default=False,
+        description="Auto-scan .oxygent/skills/ relative to CWD for project-level skills.",
+    )
+    enable_context_eviction: bool = Field(
+        default=True,
+        description=(
+            "Register the drop_context tool so the LLM can evict tools/skills "
+            "from context to save tokens mid-task."
+        ),
     )
 
     prompt: Optional[str] = Field(
@@ -81,6 +99,56 @@ class SkillAgent(ReActAgent):
         """Access to the skill registry (for hook registration etc.)."""
         return self._skill_registry
 
+    async def refresh_skills(self) -> int:
+        """Hot-reload skills from all registered sources.
+
+        Re-scans all source paths, rebuilds the registry and prompt cache.
+        Safe to call at runtime in cloud deployments without restarting.
+
+        Returns:
+            Number of skills discovered after refresh.
+        """
+        count = await self._skill_registry.refresh()
+        # Rebuild auto-inject and skill section after refresh
+        auto_inject = self._skill_registry.list_auto_inject()
+        if auto_inject:
+            content_blocks = []
+            for skill in auto_inject:
+                try:
+                    content = skill.load_content()
+                except Exception as e:
+                    logger.warning(
+                        f"[SkillAgent] Failed to load auto-inject content for '{skill.name}': {e}"
+                    )
+                    content = skill.description
+                trigger_hint = ""
+                if skill.trigger:
+                    trigger_block = skill.trigger.to_prompt_block()
+                    if trigger_block:
+                        trigger_hint = "\n" + "\n".join(
+                            f"  {line}" for line in trigger_block.splitlines()
+                        ) + "\n"
+                content_blocks.append(
+                    f"### {skill.name}\n"
+                    f"{trigger_hint}"
+                    f"{content}"
+                )
+            self._auto_inject_section = (
+                "## Always-Active Skills\n\n"
+                "The following skills are always active. Their full instructions are "
+                "embedded below — apply them automatically whenever their trigger "
+                "conditions match.\n\n"
+                + "\n\n---\n\n".join(content_blocks)
+            )
+        else:
+            self._auto_inject_section = ""
+        self._cached_skill_section = self._build_skill_section()
+        logger.info(
+            f"[SkillAgent] Hot-reload complete: {count} skills, "
+            f"skill_section rebuilt"
+        )
+        return count
+
     async def init(self) -> None:
         """Initialize with skill discovery and SkillTool registration.
 
@@ -104,6 +172,16 @@ class SkillAgent(ReActAgent):
                 SkillRegistry.make_path_source(self.skills)
             )
 
+        if self.enable_project_skills:
+            project_skills_path = ".oxygent/skills"
+            self._skill_registry.add_source(
+                SkillRegistry.make_path_source(
+                    [project_skills_path],
+                    name="project",
+                    priority=50,
+                )
+            )
+
         # Phase 2: Discover skills (runs in thread pool)
         await self._skill_registry.discover()
 
@@ -117,6 +195,12 @@ class SkillAgent(ReActAgent):
         skill_tool = SkillTool(registry=self._skill_registry, name=self.SKILL_TOOL_NAME)
         skill_tool.set_mas(self.mas)
         self.mas.oxy_name_to_oxy[self.SKILL_TOOL_NAME] = skill_tool
+
+        # Phase 3b: Register ContextEvictionTool (optional)
+        if self.enable_context_eviction:
+            eviction_tool = ContextEvictionTool(name=self.EVICTION_TOOL_NAME)
+            eviction_tool.set_mas(self.mas)
+            self.mas.oxy_name_to_oxy[self.EVICTION_TOOL_NAME] = eviction_tool
 
         # Phase 4: Auto-inject required_tools from skills into agent's tool list
         required_tools = self._skill_registry.get_required_tools()
@@ -134,30 +218,44 @@ class SkillAgent(ReActAgent):
                         f"but it is not registered in MAS"
                     )
 
-        # Phase 5: Pre-build auto-inject summary section
+        # Phase 5: Pre-build auto-inject full content section
         auto_inject = self._skill_registry.list_auto_inject()
         if auto_inject:
-            summary_entries = []
+            content_blocks = []
             for skill in auto_inject:
-                entry = f"- **{skill.name}**: {skill.description}"
+                try:
+                    content = skill.load_content()
+                except Exception as e:
+                    logger.warning(
+                        f"[SkillAgent] Failed to load auto-inject content for '{skill.name}': {e}"
+                    )
+                    content = skill.description
+                trigger_hint = ""
                 if skill.trigger:
                     trigger_block = skill.trigger.to_prompt_block()
                     if trigger_block:
-                        indented = "\n".join(f"  {line}" for line in trigger_block.splitlines())
-                        entry += "\n" + indented
-                summary_entries.append(entry)
+                        trigger_hint = "\n" + "\n".join(
+                            f"  {line}" for line in trigger_block.splitlines()
+                        ) + "\n"
+                content_blocks.append(
+                    f"### {skill.name}\n"
+                    f"{trigger_hint}"
+                    f"{content}"
+                )
 
             self._auto_inject_section = (
                 "## Always-Active Skills\n\n"
-                "The following skills are always active. Their key directives "
-                "are summarized below. Use the `" + self.SKILL_TOOL_NAME + "` tool "
-                "to load their full instructions when needed.\n\n"
-                + "\n".join(summary_entries)
+                "The following skills are always active. Their full instructions are "
+                "embedded below — apply them automatically whenever their trigger "
+                "conditions match.\n\n"
+                + "\n\n---\n\n".join(content_blocks)
             )
 
-        # Phase 6: Add skill tool to this agent's tools
+        # Phase 6: Add skill tool (and optional eviction tool) to this agent's tools
         if self.SKILL_TOOL_NAME not in self.tools:
             self.tools.append(self.SKILL_TOOL_NAME)
+        if self.enable_context_eviction and self.EVICTION_TOOL_NAME not in self.tools:
+            self.tools.append(self.EVICTION_TOOL_NAME)
 
         # Phase 7: Call parent init
         await super().init()
@@ -175,6 +273,58 @@ class SkillAgent(ReActAgent):
         oxy_request = await super()._before_execute(oxy_request)
         oxy_request.set_arguments("skill_section", self._cached_skill_section)
         return oxy_request
+
+    def _build_instruction_for_round(self, oxy_request: OxyRequest) -> str:
+        """Override: apply context eviction filtering each round."""
+        return self._build_instruction_with_eviction(oxy_request.arguments, oxy_request)
+
+    def _build_instruction_with_eviction(
+        self, arguments: dict, oxy_request: OxyRequest
+    ) -> str:
+        """Build instruction prompt, filtering out evicted tools and skills.
+
+        Called every ReAct round so evictions take effect immediately.
+        """
+        evicted_tools = get_evicted_tools(oxy_request)
+        evicted_skills = get_evicted_skills(oxy_request)
+
+        if not evicted_tools and not evicted_skills:
+            return self._build_instruction(arguments)
+
+        # Rebuild skill_section without evicted skills
+        if evicted_skills:
+            skill_section = self._build_skill_section(evicted_skills=evicted_skills)
+            patched_args = dict(arguments)
+            patched_args["skill_section"] = skill_section
+        else:
+            patched_args = arguments
+
+        instruction = self._build_instruction(patched_args)
+
+        # Strip tool descriptions for evicted tools (post-substitution filter)
+        if evicted_tools:
+            lines = instruction.splitlines()
+            filtered_lines = []
+            skip_until_blank = False
+            for line in lines:
+                if skip_until_blank:
+                    # Skip tool block lines until we hit an empty line / next tool
+                    if line.strip() == "" or (
+                        line.startswith("- **") and line.strip().endswith("**")
+                    ):
+                        skip_until_blank = False
+                    else:
+                        continue
+                # Check if this line starts a tool description for an evicted tool
+                if any(
+                    line.strip().startswith(f"- **{t}") for t in evicted_tools
+                ):
+                    skip_until_blank = True
+                    continue
+                filtered_lines.append(line)
+            instruction = "\n".join(filtered_lines)
+
+        return instruction
 
     def _parse_llm_response(
         self, ori_response: str, oxy_request: OxyRequest = None
@@ -215,16 +365,23 @@ class SkillAgent(ReActAgent):
             # Delegate to parent for ANSWER / ERROR_PARSE handling
             return super()._parse_llm_response(ori_response, oxy_request)
 
-    def _build_skill_section(self) -> str:
+    def _build_skill_section(self, evicted_skills: Optional[set] = None) -> str:
         """Build the complete dynamic skill section for prompt injection.
+
+        Args:
+            evicted_skills: Optional set of skill names to exclude (for context eviction).
 
         Returns empty string when no skills exist (no orphaned headers).
         Includes: invocable skills and auto-injected content.
         """
         parts = []
+        evicted = evicted_skills or set()
 
         # 1. Model-invocable skills (called via skill tool)
-        invocable = self._skill_registry.list_invocable()
+        invocable = [
+            s for s in self._skill_registry.list_invocable()
+            if s.name not in evicted
+        ]
         if invocable:
             entries = [s.to_prompt_entry() for s in invocable]
             parts.append(
@@ -256,7 +413,7 @@ class SkillAgent(ReActAgent):
                 f"Available skills:\n" + "\n".join(entries)
             )
 
-        # 2. Auto-injected skills (pre-built in init)
+        # 2. Auto-injected skills (pre-built in init, no eviction needed — always-active)
         if self._auto_inject_section:
             parts.append(self._auto_inject_section)
 

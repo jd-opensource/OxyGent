@@ -76,13 +76,6 @@ class SkillRegistry:
     Scans configured sources for SKILL.md files, parses their frontmatter
     using PyYAML, and maintains a name-indexed registry with priority-based
     conflict resolution.
-
-    Features:
-        - O(1) lookup by name and base_name via dual index
-        - Namespace auto-derivation from source
-        - Content validation during discovery
-        - Hot-reload via refresh()
-        - Skill invocation hooks (pre/post)
     """
 
     def __init__(self):
@@ -158,6 +151,27 @@ class SkillRegistry:
             Number of unique skills discovered.
         """
         return await asyncio.to_thread(self._discover_sync)
+
+    async def refresh(self) -> int:
+        """Re-scan all sources and rebuild the registry (hot-reload).
+
+        Clears all existing entries before re-scanning. Useful for cloud
+        deployments where skills may be updated without restarting the process.
+
+        Returns:
+            Number of unique skills discovered after refresh.
+        """
+        return await asyncio.to_thread(self._refresh_sync)
+
+    def _refresh_sync(self) -> int:
+        """Synchronous hot-reload implementation."""
+        self._skills.clear()
+        self._base_name_index.clear()
+        self._cached_all = []
+        self._cached_invocable = []
+        self._cached_auto_inject = []
+        logger.info("[SkillRegistry] Hot-reload: cleared existing skills")
+        return self._discover_sync()
 
     def _discover_sync(self) -> int:
         """Synchronous discovery implementation.
