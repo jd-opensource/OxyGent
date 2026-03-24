@@ -82,14 +82,6 @@ class SkillMetadata(BaseModel):
         description="If true, skill content is auto-injected into context "
         "without requiring the model to call the skill tool",
     )
-    user_invocable: bool = Field(
-        True,
-        description="If false, this skill cannot be invoked via /skill-name",
-    )
-    argument_hint: Optional[str] = Field(
-        None,
-        description="Hint for user-provided arguments (shown after /skill-name)",
-    )
     source_name: Optional[str] = Field(
         None,
         description="Name of the source that registered this skill",
@@ -102,7 +94,6 @@ class SkillMetadata(BaseModel):
     # Internal cache fields (not serialized, per-instance via PrivateAttr)
     _content_cache: Optional[str] = PrivateAttr(default=None)
     _has_arguments_template: Optional[bool] = PrivateAttr(default=None)
-    _file_mtime: Optional[float] = PrivateAttr(default=None)
 
     @property
     def base_name(self) -> str:
@@ -126,18 +117,8 @@ class SkillMetadata(BaseModel):
         return self._has_arguments_template
 
     def _ensure_cache(self) -> None:
-        """Load and cache the skill body from disk if not cached or stale."""
-        try:
-            current_mtime = self.skill_path.stat().st_mtime
-        except OSError:
-            current_mtime = None
-
-        if (
-            self._content_cache is not None
-            and self._file_mtime is not None
-            and current_mtime is not None
-            and abs(current_mtime - self._file_mtime) < 1e-6
-        ):
+        """Load and cache the skill body from disk (load-once)."""
+        if self._content_cache is not None:
             return
 
         raw = self.skill_path.read_text(encoding="utf-8")
@@ -157,14 +138,7 @@ class SkillMetadata(BaseModel):
                 body = "".join(lines)
 
         self._content_cache = body.strip()
-        self._has_arguments_template = "$ARGUMENTS" in raw
-        self._file_mtime = current_mtime
-
-    def invalidate_cache(self) -> None:
-        """Force re-read from disk on next access."""
-        self._content_cache = None
-        self._has_arguments_template = None
-        self._file_mtime = None
+        self._has_arguments_template = "$ARGUMENTS" in self._content_cache
 
     def load_content(self, arguments: str = "") -> str:
         """Load the markdown body from SKILL.md, stripping frontmatter.
@@ -205,8 +179,6 @@ class SkillMetadata(BaseModel):
             "author": self.author,
             "namespace": self.namespace,
             "disable_model_invocation": self.disable_model_invocation,
-            "user_invocable": self.user_invocable,
-            "argument_hint": self.argument_hint,
             "required_tools": self.required_tools,
         }
         if self.trigger:
@@ -233,14 +205,6 @@ class SkillMetadata(BaseModel):
         if disable_model_invocation is None:
             disable_model_invocation = frontmatter.get("disable_model_invocation", False)
 
-        user_invocable = frontmatter.get("user-invocable")
-        if user_invocable is None:
-            user_invocable = frontmatter.get("user_invocable", True)
-
-        argument_hint = frontmatter.get("argument-hint")
-        if argument_hint is None:
-            argument_hint = frontmatter.get("argument_hint")
-
         # Parse required_tools (supports hyphenated key)
         required_tools = frontmatter.get("required-tools")
         if required_tools is None:
@@ -248,18 +212,8 @@ class SkillMetadata(BaseModel):
         if isinstance(required_tools, str):
             required_tools = [required_tools]
 
-        name = frontmatter["name"]
-
-        # Warn if user_invocable skill has spaces in name
-        if bool(user_invocable) and " " in name:
-            logger.warning(
-                f"Skill '{name}' has spaces in name but is user_invocable=True. "
-                f"Slash commands work best with slug-format names (e.g., 'my-skill'). "
-                f"Consider renaming or setting user-invocable: false."
-            )
-
         return cls(
-            name=name,
+            name=frontmatter["name"],
             description=frontmatter["description"],
             skill_path=skill_path,
             trigger=trigger,
@@ -267,8 +221,6 @@ class SkillMetadata(BaseModel):
             version=frontmatter.get("version"),
             author=frontmatter.get("author"),
             disable_model_invocation=bool(disable_model_invocation),
-            user_invocable=bool(user_invocable),
-            argument_hint=argument_hint if isinstance(argument_hint, str) else None,
             required_tools=required_tools if isinstance(required_tools, list) else [],
         )
 

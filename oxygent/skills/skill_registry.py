@@ -9,19 +9,12 @@ Features:
     - O(1) base_name lookup via secondary index
     - Namespace auto-derivation from source name
     - Content validation during discovery
-    - Hot-reload with file mtime tracking
-    - Remote skill source fetching via URL
     - Skill hook/audit callback system
 """
 
 import asyncio
-import atexit
 import inspect
 import logging
-import os
-import shutil
-import tempfile
-import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
@@ -33,24 +26,7 @@ from ..schemas.skill import SkillMetadata
 logger = logging.getLogger(__name__)
 
 # Subdirectories to skip during skill discovery
-_SKIP_SUBDIRS = {"scripts", "references", "assets"}
-
-# Track temp directories created for remote sources (for cleanup on exit)
-_TEMP_DIRS: List[Path] = []
-
-
-def _cleanup_temp_dirs():
-    """Clean up all temporary directories created for remote skill sources."""
-    for temp_dir in _TEMP_DIRS:
-        try:
-            if temp_dir.exists():
-                shutil.rmtree(temp_dir)
-                logger.debug(f"[SkillRegistry] Cleaned up temp dir: {temp_dir}")
-        except Exception as e:
-            logger.warning(f"[SkillRegistry] Failed to clean up {temp_dir}: {e}")
-
-
-atexit.register(_cleanup_temp_dirs)
+_SKIP_SUBDIRS = {"scripts", "references", "assets", "templates", "examples", "docs", "__pycache__", ".git"}
 
 # Callback type for skill invocation hooks (sync or async)
 SkillHookCallback = Callable[["SkillHookEvent"], Optional[str]]
@@ -114,6 +90,10 @@ class SkillRegistry:
         self._skills: Dict[str, SkillMetadata] = {}
         self._base_name_index: Dict[str, SkillMetadata] = {}
         self._hooks: List[SkillHookCallback] = []
+        # Pre-built cached lists (populated after discover)
+        self._cached_all: List[SkillMetadata] = []
+        self._cached_invocable: List[SkillMetadata] = []
+        self._cached_auto_inject: List[SkillMetadata] = []
 
     def add_source(self, source: SkillSource) -> None:
         """Register a skill source for discovery."""
@@ -179,23 +159,6 @@ class SkillRegistry:
         """
         return await asyncio.to_thread(self._discover_sync)
 
-    async def refresh(self) -> int:
-        """Re-scan all sources, picking up new/changed/deleted skills.
-
-        Clears existing registry and re-discovers. Skill content caches
-        are automatically refreshed via mtime tracking in SkillMetadata.
-
-        Returns:
-            Number of unique skills after refresh.
-        """
-        return await asyncio.to_thread(self._refresh_sync)
-
-    def _refresh_sync(self) -> int:
-        """Synchronous refresh implementation."""
-        self._skills.clear()
-        self._base_name_index.clear()
-        return self._discover_sync()
-
     def _discover_sync(self) -> int:
         """Synchronous discovery implementation.
 
@@ -229,7 +192,15 @@ class SkillRegistry:
                         self._process_skill_file(skill_file, source)
 
         logger.info(f"[SkillRegistry] Discovery complete: {len(self._skills)} skills found")
+        self._rebuild_caches()
         return len(self._skills)
+
+    def _rebuild_caches(self) -> None:
+        """Rebuild sorted list caches after discovery."""
+        all_skills = sorted(self._skills.values(), key=lambda s: s.name)
+        self._cached_all = all_skills
+        self._cached_invocable = [s for s in all_skills if not s.disable_model_invocation]
+        self._cached_auto_inject = [s for s in all_skills if s.disable_model_invocation]
 
     def _process_skill_file(self, skill_file: Path, source: SkillSource) -> None:
         """Parse and register a single SKILL.md file."""
@@ -269,7 +240,7 @@ class SkillRegistry:
         bname = metadata.base_name
         if bname != metadata.name:
             if bname in self._base_name_index and self._base_name_index[bname].name != metadata.name:
-                logger.debug(
+                logger.warning(
                     f"[SkillRegistry] base_name '{bname}' collision: "
                     f"'{metadata.name}' overrides '{self._base_name_index[bname].name}'"
                 )
@@ -294,24 +265,14 @@ class SkillRegistry:
 
     def list_all(self) -> List[SkillMetadata]:
         """Return all registered skills, sorted by name."""
-        return sorted(self._skills.values(), key=lambda s: s.name)
+        return self._cached_all
 
     def list_invocable(self) -> List[SkillMetadata]:
         """Return skills the model can invoke via the skill tool.
 
         Excludes skills with disable_model_invocation=True (those are auto-injected).
         """
-        return sorted(
-            [s for s in self._skills.values() if not s.disable_model_invocation],
-            key=lambda s: s.name,
-        )
-
-    def list_user_invocable(self) -> List[SkillMetadata]:
-        """Return skills invocable via user slash commands."""
-        return sorted(
-            [s for s in self._skills.values() if s.user_invocable],
-            key=lambda s: s.name,
-        )
+        return self._cached_invocable
 
     def list_auto_inject(self) -> List[SkillMetadata]:
         """Return skills that should be auto-injected into context.
@@ -319,10 +280,7 @@ class SkillRegistry:
         These are skills with disable_model_invocation=True — their content
         is injected directly without requiring the model to call the skill tool.
         """
-        return sorted(
-            [s for s in self._skills.values() if s.disable_model_invocation],
-            key=lambda s: s.name,
-        )
+        return self._cached_auto_inject
 
     def get_required_tools(self) -> List[str]:
         """Collect all required_tools from all registered skills (deduplicated)."""
@@ -330,28 +288,6 @@ class SkillRegistry:
         for skill in self._skills.values():
             tools.update(skill.required_tools)
         return sorted(tools)
-
-    def get_skill_references(self, skill_name: str) -> List[str]:
-        """Get skills that reference the given skill in their content.
-
-        Used for skill chaining — checks if any skill body mentions another
-        skill by name (e.g., "invoke the weather skill first").
-        """
-        refs = []
-        target = self.get(skill_name)
-        if target is None:
-            return refs
-
-        for skill in self._skills.values():
-            if skill.name == target.name:
-                continue
-            try:
-                body = skill.load_content()
-                if target.name in body or target.base_name in body:
-                    refs.append(skill.name)
-            except Exception:
-                pass
-        return refs
 
     @staticmethod
     def _parse_skill_file(path: Path) -> Optional[SkillMetadata]:
@@ -395,15 +331,6 @@ class SkillRegistry:
             return None
 
     @staticmethod
-    def make_project_source(root: Path) -> SkillSource:
-        """Create a project-level skill source (.oxygent/skills/, priority=100)."""
-        return SkillSource(
-            name="project",
-            paths=[root / ".oxygent" / "skills"],
-            priority=100,
-        )
-
-    @staticmethod
     def make_path_source(
         paths: List[str],
         name: str = "custom",
@@ -419,59 +346,6 @@ class SkillRegistry:
         return SkillSource(
             name=name,
             paths=[Path(p) for p in paths],
-            priority=priority,
-            namespace=auto_ns,
-        )
-
-    @staticmethod
-    def make_remote_source(
-        url: str,
-        name: str = "remote",
-        priority: int = 60,
-        namespace: Optional[str] = None,
-        cache_dir: Optional[Path] = None,
-    ) -> SkillSource:
-        """Create a remote skill source by fetching a zip archive from URL.
-
-        Downloads the archive to a local cache directory and returns a
-        SkillSource pointing to the extracted path. The archive should
-        contain SKILL.md files in subdirectories.
-
-        Args:
-            url: URL to a .zip archive containing skill directories.
-            name: Source identifier.
-            priority: Priority for conflict resolution.
-            namespace: Optional namespace for discovered skills.
-            cache_dir: Where to extract. Defaults to a temp directory.
-
-        Returns:
-            SkillSource pointing to the extracted directory.
-        """
-        if cache_dir is None:
-            cache_dir = Path(tempfile.mkdtemp(prefix="oxygent_skills_"))
-            _TEMP_DIRS.append(cache_dir)  # Register for cleanup on exit
-
-        extract_path = cache_dir / name
-        extract_path.mkdir(parents=True, exist_ok=True)
-
-        try:
-            import urllib.request
-            zip_path = cache_dir / f"{name}.zip"
-            urllib.request.urlretrieve(url, str(zip_path))
-
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(str(extract_path))
-
-            zip_path.unlink()
-            logger.info(f"[SkillRegistry] Remote source '{name}' fetched from {url}")
-        except Exception as e:
-            logger.error(f"[SkillRegistry] Failed to fetch remote source '{name}' from {url}: {e}")
-            return SkillSource(name=name, paths=[], priority=priority, namespace=namespace)
-
-        auto_ns = namespace if namespace is not None else name
-        return SkillSource(
-            name=name,
-            paths=[extract_path],
             priority=priority,
             namespace=auto_ns,
         )

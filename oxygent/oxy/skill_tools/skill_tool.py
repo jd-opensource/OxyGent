@@ -7,6 +7,7 @@ $ARGUMENTS substitution, and returns it wrapped in <skill-instructions> tags.
 Integrates with SkillRegistry hooks for pre/post invocation auditing.
 """
 
+import difflib
 import logging
 
 from pydantic import Field, PrivateAttr
@@ -83,19 +84,16 @@ class SkillTool(BaseTool):
         # Look up skill
         metadata = self._registry.get(skill_name)
         if metadata is None:
-            available = [s.name for s in self._registry.list_invocable()]
+            all_names = [s.name for s in self._registry.list_all()]
+            suggestions = difflib.get_close_matches(skill_name, all_names, n=3, cutoff=0.4)
+            msg = f"Skill '{skill_name}' not found."
+            if suggestions:
+                msg += f" Did you mean: {', '.join(suggestions)}?"
+            else:
+                msg += f" Available skills: {', '.join(all_names)}"
             return OxyResponse(
                 state=OxyState.FAILED,
-                output=f"Skill '{skill_name}' not found. Available skills: {', '.join(available)}",
-            )
-
-        # Check if this skill is auto-injected (disable_model_invocation=True)
-        if metadata.disable_model_invocation:
-            return OxyResponse(
-                state=OxyState.COMPLETED,
-                output=f"Skill '{skill_name}' is pre-loaded and already active in your context. "
-                       f"Its instructions have been auto-injected — follow them directly "
-                       f"without needing to invoke this tool.",
+                output=msg,
             )
 
         # Fire pre_invoke hooks
