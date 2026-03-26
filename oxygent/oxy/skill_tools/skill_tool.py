@@ -49,6 +49,10 @@ class SkillTool(BaseTool):
                     "type": "string",
                     "description": "Optional arguments for the skill (replaces $ARGUMENTS in skill content)",
                 },
+                "file": {
+                    "type": "string",
+                    "description": "Load a companion resource file from the skill's directory instead of the main skill content. Use the filename shown in available_resources.",
+                },
             },
             "required": ["skill"],
         },
@@ -65,15 +69,13 @@ class SkillTool(BaseTool):
         """Execute the skill invocation.
 
         1. Look up skill in registry
-        2. Validate invocation is allowed
-        3. Fire pre_invoke hooks (can block)
-        4. Load content with $ARGUMENTS substitution
-        5. Fire post_invoke hooks
-        6. Return wrapped in <skill-instructions> tags
+        2. If `file` param given, return companion resource content
+        3. Otherwise: validate, fire hooks, load SKILL.md content, append resource list
         """
         arguments = oxy_request.arguments
         skill_name = arguments.get("skill", "")
         args = arguments.get("args", "")
+        file_name = arguments.get("file", "")
 
         if not skill_name:
             return OxyResponse(
@@ -95,6 +97,27 @@ class SkillTool(BaseTool):
                 state=OxyState.FAILED,
                 output=msg,
             )
+
+        # --- Branch: load companion resource file ---
+        if file_name:
+            content = metadata.load_resource(file_name)
+            if content is None:
+                available = metadata.resource_names
+                msg = f"Resource '{file_name}' not found in skill '{skill_name}'."
+                if available:
+                    msg += f" Available resources: {', '.join(available)}"
+                else:
+                    msg += " This skill has no companion resource files."
+                return OxyResponse(state=OxyState.FAILED, output=msg)
+            formatted = (
+                f'<skill-resource name="{escape_xml_attr(metadata.name)}" '
+                f'file="{escape_xml_attr(file_name)}">\n'
+                f"{content}\n"
+                f"</skill-resource>"
+            )
+            return OxyResponse(state=OxyState.COMPLETED, output=formatted)
+
+        # --- Branch: load main skill content ---
 
         # Fire pre_invoke hooks
         pre_event = SkillHookEvent(
@@ -128,6 +151,15 @@ class SkillTool(BaseTool):
             f"{content}\n"
             f"</skill-instructions>"
         )
+
+        # Append available resources hint if any exist
+        resources = metadata.resource_names
+        if resources:
+            res_list = ", ".join(resources)
+            formatted += (
+                f"\n\nThis skill has companion resource files: [{res_list}]. "
+                f"To load one, call: skill(skill=\"{skill_name}\", file=\"<filename>\")"
+            )
 
         # Fire post_invoke hooks
         post_event = SkillHookEvent(

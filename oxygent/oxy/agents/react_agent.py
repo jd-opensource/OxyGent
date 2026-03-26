@@ -80,10 +80,19 @@ class ReActAgent(LocalAgent):
 
     trust_mode: bool = Field(False, description="Enable trust mode for direct results")
 
+    context_window_size: int = Field(
+        default=0,
+        description=(
+            "Total context window size (input + output) of the LLM in tokens. "
+            "When > 0, used by auto-compression to decide when react_memory is too large. "
+            "When 0 (default), auto-compression is effectively disabled."
+        ),
+    )
+
     context_window_ratio: float = Field(
         0.9,
         description=(
-            "Fraction of the LLM's max_tokens at which react_memory is auto-compressed. "
+            "Fraction of context_window_size at which react_memory is auto-compressed. "
             "E.g. 0.9 means compress when context reaches 90% of the window."
         ),
     )
@@ -310,19 +319,14 @@ class ReActAgent(LocalAgent):
             )
 
     def _get_llm_max_tokens(self) -> int:
-        """Return effective max_tokens for the agent's LLM.
+        """Return effective context window size for compression decisions.
 
-        Priority: LLM instance llm_params → Config global default.
+        Priority: agent-level context_window_size → 0 (disabled).
+        Returns 0 when not configured, which disables auto-compression.
         """
-        try:
-            llm = self.mas.oxy_name_to_oxy.get(self.llm_model)
-            if llm is not None and hasattr(llm, "llm_params"):
-                v = llm.llm_params.get("max_tokens")
-                if v:
-                    return int(v)
-        except Exception:
-            pass
-        return int(Config.get_llm_config().get("max_tokens", 4096))
+        if self.context_window_size > 0:
+            return self.context_window_size
+        return 0
 
     @staticmethod
     def _estimate_tokens(messages: list) -> int:
@@ -362,6 +366,9 @@ class ReActAgent(LocalAgent):
             return react_memory
 
         max_tokens = self._get_llm_max_tokens()
+        if max_tokens <= 0:
+            return react_memory
+
         threshold = int(max_tokens * self.context_window_ratio)
         react_tokens = self._estimate_tokens(react_memory.to_dict_list())
 

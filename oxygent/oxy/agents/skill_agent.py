@@ -35,6 +35,7 @@ from ..skill_tools.context_eviction_tool import (
     get_evicted_skills,
     get_evicted_tools,
 )
+from ..skill_tools.read_file_tool import ReadFileTool
 from ..skill_tools.skill_tool import SkillTool
 from .react_agent import ReActAgent
 
@@ -58,6 +59,7 @@ class SkillAgent(ReActAgent):
 
     SKILL_TOOL_NAME: str = "skill"
     EVICTION_TOOL_NAME: str = "drop_context"
+    READ_FILE_TOOL_NAME: str = "read_file"
 
     skills: Optional[List[str]] = Field(
         default=None,
@@ -72,6 +74,14 @@ class SkillAgent(ReActAgent):
         description=(
             "Register the drop_context tool so the LLM can evict tools/skills "
             "from context to save tokens mid-task."
+        ),
+    )
+    enable_file_reading: bool = Field(
+        default=True,
+        description=(
+            "Register the read_file tool so the LLM can read files on demand. "
+            "Enables the pattern where SKILL.md references companion files "
+            "(e.g. 'see ./FORMS.md') and the LLM reads them as needed."
         ),
     )
 
@@ -196,11 +206,17 @@ class SkillAgent(ReActAgent):
         skill_tool.set_mas(self.mas)
         self.mas.oxy_name_to_oxy[self.SKILL_TOOL_NAME] = skill_tool
 
-        # Phase 3b: Register ContextEvictionTool (optional)
+        # Register ContextEvictionTool (optional)
         if self.enable_context_eviction:
             eviction_tool = ContextEvictionTool(name=self.EVICTION_TOOL_NAME)
             eviction_tool.set_mas(self.mas)
             self.mas.oxy_name_to_oxy[self.EVICTION_TOOL_NAME] = eviction_tool
+
+        #  Register ReadFileTool (optional)
+        if self.enable_file_reading:
+            read_file_tool = ReadFileTool(name=self.READ_FILE_TOOL_NAME)
+            read_file_tool.set_mas(self.mas)
+            self.mas.oxy_name_to_oxy[self.READ_FILE_TOOL_NAME] = read_file_tool
 
         # Phase 4: Auto-inject required_tools from skills into agent's tool list
         required_tools = self._skill_registry.get_required_tools()
@@ -256,6 +272,8 @@ class SkillAgent(ReActAgent):
             self.tools.append(self.SKILL_TOOL_NAME)
         if self.enable_context_eviction and self.EVICTION_TOOL_NAME not in self.tools:
             self.tools.append(self.EVICTION_TOOL_NAME)
+        if self.enable_file_reading and self.READ_FILE_TOOL_NAME not in self.tools:
+            self.tools.append(self.READ_FILE_TOOL_NAME)
 
         # Phase 7: Call parent init
         await super().init()

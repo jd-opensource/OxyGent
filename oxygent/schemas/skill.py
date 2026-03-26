@@ -7,7 +7,7 @@ LLM-based semantic matching, and on-demand content loading with $ARGUMENTS suppo
 import logging
 from html import escape as html_escape
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import yaml
 from pydantic import BaseModel, Field, PrivateAttr
@@ -100,6 +100,7 @@ class SkillMetadata(BaseModel):
     _content_cache: Optional[str] = PrivateAttr(default=None)
     _mtime: Optional[float] = PrivateAttr(default=None)
     _has_arguments_template: Optional[bool] = PrivateAttr(default=None)
+    _resources_cache: Optional[Dict[str, str]] = PrivateAttr(default=None)
 
     @property
     def base_name(self) -> str:
@@ -171,6 +172,39 @@ class SkillMetadata(BaseModel):
             content = content.replace("$ARGUMENTS", arguments)
 
         return content
+
+    @property
+    def resource_names(self) -> List[str]:
+        """Return sorted list of companion resource filenames (*.md except SKILL.md)."""
+        self._ensure_resources()
+        return sorted(self._resources_cache.keys())
+
+    def load_resource(self, name: str) -> Optional[str]:
+        """Load a companion resource file by name.
+
+        Args:
+            name: Filename (e.g. 'security_checklist.md').
+
+        Returns:
+            File content string, or None if not found.
+        """
+        self._ensure_resources()
+        return self._resources_cache.get(name)
+
+    def _ensure_resources(self) -> None:
+        """Scan skill directory for companion .md files and cache their content."""
+        if self._resources_cache is not None:
+            return
+
+        self._resources_cache = {}
+        skill_dir = self.skill_path.parent
+        for md_file in skill_dir.glob("*.md"):
+            if md_file.name == "SKILL.md":
+                continue
+            try:
+                self._resources_cache[md_file.name] = md_file.read_text(encoding="utf-8")
+            except Exception as e:
+                logger.warning(f"[SkillMetadata] Failed to cache resource '{md_file.name}': {e}")
 
     def to_prompt_entry(self) -> str:
         """Format for system prompt injection with trigger conditions."""
