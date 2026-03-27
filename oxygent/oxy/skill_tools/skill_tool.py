@@ -27,8 +27,8 @@ class SkillTool(BaseTool):
     The tool loads the skill's SKILL.md content, performs $ARGUMENTS
     substitution, and returns it wrapped in <skill-instructions> tags.
 
-    Skills with disable_model_invocation=True are auto-injected into
-    the prompt by the SkillAgent and should not be called via this tool.
+    The returned content includes a source path header so the LLM can
+    resolve relative file references (e.g. ``./checklist.md``) naturally.
     """
 
     name: str = Field(default="skill", description="Tool name")
@@ -49,10 +49,6 @@ class SkillTool(BaseTool):
                     "type": "string",
                     "description": "Optional arguments for the skill (replaces $ARGUMENTS in skill content)",
                 },
-                "file": {
-                    "type": "string",
-                    "description": "Load a companion resource file from the skill's directory instead of the main skill content. Use the filename shown in available_resources.",
-                },
             },
             "required": ["skill"],
         },
@@ -69,13 +65,12 @@ class SkillTool(BaseTool):
         """Execute the skill invocation.
 
         1. Look up skill in registry
-        2. If `file` param given, return companion resource content
-        3. Otherwise: validate, fire hooks, load SKILL.md content, append resource list
+        2. Fire hooks, load SKILL.md content
+        3. Include source path for LLM to resolve relative references
         """
         arguments = oxy_request.arguments
         skill_name = arguments.get("skill", "")
         args = arguments.get("args", "")
-        file_name = arguments.get("file", "")
 
         if not skill_name:
             return OxyResponse(
@@ -97,27 +92,6 @@ class SkillTool(BaseTool):
                 state=OxyState.FAILED,
                 output=msg,
             )
-
-        # --- Branch: load companion resource file ---
-        if file_name:
-            content = metadata.load_resource(file_name)
-            if content is None:
-                available = metadata.resource_names
-                msg = f"Resource '{file_name}' not found in skill '{skill_name}'."
-                if available:
-                    msg += f" Available resources: {', '.join(available)}"
-                else:
-                    msg += " This skill has no companion resource files."
-                return OxyResponse(state=OxyState.FAILED, output=msg)
-            formatted = (
-                f'<skill-resource name="{escape_xml_attr(metadata.name)}" '
-                f'file="{escape_xml_attr(file_name)}">\n'
-                f"{content}\n"
-                f"</skill-resource>"
-            )
-            return OxyResponse(state=OxyState.COMPLETED, output=formatted)
-
-        # --- Branch: load main skill content ---
 
         # Fire pre_invoke hooks
         pre_event = SkillHookEvent(
@@ -144,22 +118,17 @@ class SkillTool(BaseTool):
                 output=f"Failed to load skill '{skill_name}': {e}",
             )
 
+        # Source path so LLM can resolve relative file references naturally
+        skill_source = str(metadata.skill_path.resolve())
+
         # Build formatted output with <skill-instructions> tags
         args_attr = f' args="{escape_xml_attr(args)}"' if args else ""
         formatted = (
             f'<skill-instructions name="{escape_xml_attr(metadata.name)}"{args_attr}>\n'
+            f"(source: {skill_source})\n\n"
             f"{content}\n"
             f"</skill-instructions>"
         )
-
-        # Append available resources hint if any exist
-        resources = metadata.resource_names
-        if resources:
-            res_list = ", ".join(resources)
-            formatted += (
-                f"\n\nThis skill has companion resource files: [{res_list}]. "
-                f"To load one, call: skill(skill=\"{skill_name}\", file=\"<filename>\")"
-            )
 
         # Fire post_invoke hooks
         post_event = SkillHookEvent(
