@@ -1,12 +1,4 @@
 """SkillAgent: Skill-aware agent with SkillTool integration.
-
-Features:
-    - SkillTool for LLM-driven invocation via tool-calling
-    - Auto-injection for disable_model_invocation skills
-    - Dynamic skill_section prompt construction
-    - Skill dependency (required_tools) auto-injection
-    - Pre/post invocation hooks via SkillRegistry
-
 Usage:
     >>> oxy_space = [
     ...     oxy.SkillAgent(
@@ -370,7 +362,7 @@ class SkillAgent(ReActAgent):
                 f"Available skills:\n" + "\n".join(entries)
             )
 
-        # 2. Auto-injected skills (pre-built in init, no eviction needed — always-active)
+        # 2. Auto-injected skills (pre-built in init — always-active)
         if self._auto_inject_section:
             parts.append(self._auto_inject_section)
 

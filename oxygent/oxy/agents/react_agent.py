@@ -149,9 +149,6 @@ class ReActAgent(LocalAgent):
 
     def _build_instruction_for_round(self, oxy_request: OxyRequest) -> str:
         """Build the system instruction for the current ReAct round.
-
-        Subclasses (e.g. SkillAgent) can override this to apply per-round
-        modifications such as context eviction filtering.
         """
         return self._build_instruction(oxy_request.arguments)
 
