@@ -44,7 +44,7 @@ class SSEOxyGent(RemoteAgent):
             },
         )
         payload = oxy_request.model_dump(
-            exclude={"mas", "parallel_id", "latest_node_ids"}
+            exclude={"mas", "parallel_id", "latest_node_ids", "callee", "callee_category"}
         )
         payload.update(payload["arguments"])
         payload["caller_category"] = "user"
