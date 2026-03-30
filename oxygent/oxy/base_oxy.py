@@ -225,12 +225,13 @@ class Oxy(BaseModel, ABC):
                     arg_desc += " (required)"
                 args_desc.append(arg_desc)
 
-        self.desc_for_llm = f"""
-            Tool: {self.name}
-            Description: {self.desc}
-            Arguments:
-            {chr(10).join(args_desc)}
-            """
+        args_block = "\n".join(args_desc) if args_desc else "(none)"
+        self.desc_for_llm = (
+            f"Tool: {self.name}\n"
+            f"Description: {self.desc}\n"
+            f"Arguments:\n"
+            f"{args_block}"
+        )
 
     async def init(self):
         self._set_desc_for_llm()

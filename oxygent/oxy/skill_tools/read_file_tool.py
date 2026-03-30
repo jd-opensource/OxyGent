@@ -16,8 +16,9 @@ Usage by LLM:
 
 import logging
 import os
+from typing import List
 
-from pydantic import Field
+from pydantic import Field, PrivateAttr
 
 from ...schemas import OxyRequest, OxyResponse, OxyState
 from ..base_tool import BaseTool
@@ -34,6 +35,8 @@ class ReadFileTool(BaseTool):
     Supports reading entire files or specific line ranges via offset/limit.
     Returns content with line numbers for easy reference.
     """
+
+    _skill_context_dirs: List[str] = PrivateAttr(default_factory=list)
 
     name: str = Field(default="read_file")
     description: str = Field(
@@ -65,6 +68,16 @@ class ReadFileTool(BaseTool):
         }
     )
 
+    def set_skill_context_dir(self, dir_path: str) -> None:
+        """Add a skill context directory for relative path resolution.
+
+        Supports parallel skill invocations: each skill appends its dir
+        so that subsequent read_file calls can resolve against any of them.
+        Deduplicates to avoid redundant lookups.
+        """
+        if dir_path not in self._skill_context_dirs:
+            self._skill_context_dirs.append(dir_path)
+
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         arguments = oxy_request.arguments
         file_path = arguments.get("file_path", "")
@@ -78,6 +91,18 @@ class ReadFileTool(BaseTool):
             )
 
         file_path = os.path.expanduser(file_path)
+
+        # Fallback: resolve relative paths against skill context directories
+        if (
+            not os.path.isabs(file_path)
+            and not os.path.exists(file_path)
+            and self._skill_context_dirs
+        ):
+            for ctx_dir in self._skill_context_dirs:
+                resolved = os.path.normpath(os.path.join(ctx_dir, file_path))
+                if os.path.exists(resolved):
+                    file_path = resolved
+                    break
 
         if not os.path.exists(file_path):
             return OxyResponse(

@@ -121,18 +121,38 @@ ${hello_terminal}${terminal_history}
 
 
 SYSTEM_PROMPT_CONTEXT_SUMMARY = """
-You are a context compressor. The agent below has been running a multi-step ReAct loop
-and its working memory is approaching the context window limit.
+You are a context compressor for an AI agent's working memory.
 
-Your job: compress the reasoning trace into a compact summary that preserves all
-information needed to continue the task, including:
-- What has been done so far (tools called, results received)
-- Key facts and data extracted from tool results
-- What still needs to be done
-- Any errors or retries that occurred
+The agent has been running a multi-step ReAct loop. The reasoning trace below
+represents the OLDER portion of the agent's memory (the most recent rounds have
+been kept verbatim and are NOT included here).
 
-Output ONLY the compressed summary. Do not add commentary. Be concise but complete.
-Keep all numbers, file paths, identifiers, and other precise values.
+Compress this trace into a summary of at most {target_tokens} tokens that
+preserves everything needed to continue the task.
+
+PRESERVE EXACTLY (never paraphrase or omit):
+- All file paths, URLs, IDs, keys, and numeric values
+- Tool names and their exact arguments used
+- Error messages and retry outcomes
+- Any data values extracted from tool results
+
+COMPRESS AGGRESSIVELY:
+- Reasoning/thinking steps (only keep the conclusion)
+- Repeated or redundant tool calls that produced the same result
+- Verbose intermediate output (keep key facts, drop boilerplate)
+- Step-by-step narrative (replace with bullet list of what was done + found)
+
+Format your output as:
+## Summary of completed steps
+[bullet list: tool called → key result]
+
+## Key facts extracted
+[all precise values: IDs, paths, counts, etc.]
+
+## Pending / in-progress
+[what was being worked on when this trace was cut off]
+
+Output ONLY the formatted summary. Target: {target_tokens} tokens or fewer.
 
 Reasoning trace to compress:
 """
@@ -194,8 +214,24 @@ When a skill's TRIGGER conditions match the current request:
 1. You MUST invoke the skill tool FIRST, before generating any answer
 2. After receiving the `<skill-instructions>` response, follow those instructions as your primary directive for the remainder of the task
 3. If a skill has `DO NOT TRIGGER` conditions that match, skip that skill even if TRIGGER conditions also match
-4. If multiple skill triggers match and their invocations are independent, call them all at once using a JSON array
+4. If multiple skill triggers match and their invocations are independent, call them ALL at once in a single JSON array — do NOT invoke them one at a time across multiple rounds
 5. If no skill trigger matches, answer directly using your own knowledge and available tools
+6. NEVER invoke the same skill more than once — each skill only needs to be called once to load its instructions
+
+## Following Skill Instructions
+
+After receiving `<skill-instructions>`, you MUST strictly follow every step and directive within them:
+1. **Read referenced files**: When skill instructions contain markdown links (e.g. `[text](./file.md)`) or explicit directives like "read", "see", "load", or "must see", you MUST call the `read_file` tool to read those files BEFORE generating any answer. The `(source: ...)` line at the top of skill-instructions gives the absolute path of the SKILL.md file — use its directory as the base to resolve relative paths (e.g. if source is `/a/b/SKILL.md` and link is `./CHECKLIST.md`, read `/a/b/CHECKLIST.md`; if link is `../other/file.md`, read `/a/other/file.md`)
+2. **Do NOT skip steps**: Execute each numbered step or section in the skill instructions in order. Do not jump to the final answer
+3. **Do NOT substitute with your own knowledge**: Skill companion files contain authoritative, project-specific content that may differ from your training data. Always read and use the actual file content
+4. **Multiple file references**: If multiple files are referenced and their reads are independent, call `read_file` for all of them at once using a JSON array
+5. **Avoid redundant calls**: If a file has already been read earlier in this conversation (its content is visible in prior tool results), do NOT read it again. Similarly, do NOT invoke the same skill twice — reuse the instructions already received
+
+## Efficiency Rules
+
+- When multiple skill triggers match the current request and their invocations are independent, invoke ALL of them at once using a JSON array in a single response. Do NOT invoke one skill, wait for the result, then invoke the next
+- When you need to call the same tool multiple times with different arguments and the calls are independent, batch them into a single JSON array response
+- Never emit the same tool call (same tool_name + same arguments) more than once in a single response
 
 Always-active skills (shown in the "Always-Active Skills" section above, if present) are pre-loaded — do NOT call the skill tool for them; just follow their embedded instructions.
 

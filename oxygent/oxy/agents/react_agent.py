@@ -97,6 +97,15 @@ class ReActAgent(LocalAgent):
         ),
     )
 
+    compression_keep_recent_rounds: int = Field(
+        default=2,
+        description=(
+            "Number of most-recent ReAct rounds to preserve verbatim during "
+            "context compression. Rounds beyond this count are summarized. "
+            "Set to 0 to compress all rounds (original behavior)."
+        ),
+    )
+
     func_parse_llm_response: Optional[Callable[[str, OxyRequest], LLMResponse]] = Field(
         None, exclude=True, description="Function to parse LLM output"
     )
@@ -342,6 +351,43 @@ class ReActAgent(LocalAgent):
                         total += len(str(part.get("text", part.get("content", ""))))
         return max(total // 4, 1)
 
+    @staticmethod
+    def _format_trace_for_compression(messages: list) -> str:
+        """Format react_memory messages into structured round-indexed text.
+
+        Produces a clear format with round boundaries and tool call/result
+        pairing, making it easier for the compressor LLM to understand
+        the trace structure. Strips <think> blocks (low-value for compression).
+        """
+        parts = []
+        i = 0
+        round_num = 1
+        while i < len(messages):
+            msg = messages[i]
+            parts.append(f"=== Round {round_num} ===")
+            if msg.role == "assistant":
+                content = msg.content or ""
+                # Strip think blocks — low value for compressor
+                content = re.sub(
+                    r"<think>.*?</think>", "", content, flags=re.DOTALL
+                ).strip()
+                parts.append(f"[TOOL CALL]\n{content}")
+                if (
+                    i + 1 < len(messages)
+                    and messages[i + 1].role == "user"
+                ):
+                    parts.append(
+                        f"[RESULT]\n{messages[i + 1].content or ''}"
+                    )
+                    i += 2
+                else:
+                    i += 1
+            else:
+                parts.append(f"[{msg.role.upper()}]\n{msg.content or ''}")
+                i += 1
+            round_num += 1
+        return "\n\n".join(parts)
+
     async def _maybe_compress_react_memory(
         self,
         react_memory: Memory,
@@ -350,9 +396,9 @@ class ReActAgent(LocalAgent):
     ) -> Memory:
         """Compress react_memory when context approaches the window limit.
 
-        Triggers when (fixed_tokens + react_memory tokens) > context_window_ratio
-        × max_tokens. Calls the LLM to produce a compact summary of the reasoning
-        trace and replaces react_memory with a single compressed message.
+        Preserves the most recent rounds verbatim (controlled by
+        compression_keep_recent_rounds) and only compresses older rounds
+        using a structured format with explicit token budget.
 
         Args:
             react_memory: Current ReAct working memory.
@@ -385,11 +431,46 @@ class ReActAgent(LocalAgent):
             },
         )
 
-        trace_text = "\n".join(
-            f"[{msg.role}]: {msg.content}" for msg in react_memory.messages
+        # Split into old (compressible) and recent (keep verbatim) slices
+        total_msgs = len(react_memory.messages)
+        keep_msgs = min(
+            total_msgs, self.compression_keep_recent_rounds * 2
+        )
+        # Align to even boundary so we never split a round (assistant + user pair)
+        if keep_msgs % 2 != 0:
+            keep_msgs -= 1
+
+        if keep_msgs > 0:
+            old_messages = react_memory.messages[:-keep_msgs]
+            recent_messages = react_memory.messages[-keep_msgs:]
+        else:
+            old_messages = react_memory.messages
+            recent_messages = []
+
+        # If nothing to compress (all messages are "recent"), return unchanged
+        if not old_messages:
+            return react_memory
+
+        # Compute token budget for the compressed summary
+        recent_tokens = (
+            self._estimate_tokens(
+                [m.to_dict() for m in recent_messages]
+            )
+            if recent_messages
+            else 0
+        )
+        available = threshold - fixed_tokens - recent_tokens
+        target_tokens = max(200, min(available * 2 // 5, threshold // 4))
+
+        # Format old messages as structured rounds
+        trace_text = self._format_trace_for_compression(old_messages)
+
+        # Build compression prompt with token budget
+        prompt_text = SYSTEM_PROMPT_CONTEXT_SUMMARY.strip().format(
+            target_tokens=target_tokens
         )
         summary_messages = [
-            Message.system_message(SYSTEM_PROMPT_CONTEXT_SUMMARY.strip()),
+            Message.system_message(prompt_text),
             Message.user_message(trace_text),
         ]
 
@@ -402,10 +483,15 @@ class ReActAgent(LocalAgent):
             compressed.add_message(
                 Message.user_message(f"[Compressed reasoning trace]\n{resp.output}")
             )
+            # Append recent rounds verbatim after the compressed summary
+            compressed.add_messages(
+                [Message(role=m.role, content=m.content) for m in recent_messages]
+            )
             compressed_tokens = self._estimate_tokens(compressed.to_dict_list())
             logger.info(
                 f"[ReActAgent] Compression done: "
-                f"{react_tokens} → {compressed_tokens} tokens",
+                f"{react_tokens} → {compressed_tokens} tokens "
+                f"({len(recent_messages)} recent messages preserved)",
                 extra={
                     "trace_id": oxy_request.current_trace_id,
                     "node_id": oxy_request.node_id,

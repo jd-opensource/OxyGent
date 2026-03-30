@@ -6,7 +6,6 @@ Features:
     - Dynamic skill_section prompt construction
     - Skill dependency (required_tools) auto-injection
     - Pre/post invocation hooks via SkillRegistry
-    - Context eviction: model can drop tools/skills mid-task to save tokens
 
 Usage:
     >>> oxy_space = [
@@ -30,11 +29,6 @@ from ...prompts import SYSTEM_PROMPT_SKILLS
 from ...schemas import LLMResponse, LLMState, OxyRequest
 from ...skills.skill_registry import SkillRegistry
 from ...utils.common_utils import extract_json_blocks
-from ..skill_tools.context_eviction_tool import (
-    ContextEvictionTool,
-    get_evicted_skills,
-    get_evicted_tools,
-)
 from ..skill_tools.read_file_tool import ReadFileTool
 from ..skill_tools.skill_tool import SkillTool
 from .react_agent import ReActAgent
@@ -58,7 +52,6 @@ class SkillAgent(ReActAgent):
     """
 
     SKILL_TOOL_NAME: str = "skill"
-    EVICTION_TOOL_NAME: str = "drop_context"
     READ_FILE_TOOL_NAME: str = "read_file"
 
     skills: Optional[List[str]] = Field(
@@ -68,13 +61,6 @@ class SkillAgent(ReActAgent):
     enable_project_skills: bool = Field(
         default=False,
         description="Auto-scan .oxygent/skills/ relative to CWD for project-level skills.",
-    )
-    enable_context_eviction: bool = Field(
-        default=True,
-        description=(
-            "Register the drop_context tool so the LLM can evict tools/skills "
-            "from context to save tokens mid-task."
-        ),
     )
     enable_file_reading: bool = Field(
         default=True,
@@ -202,15 +188,13 @@ class SkillAgent(ReActAgent):
                 f"Agent '{self.name}' will overwrite it."
             )
 
-        skill_tool = SkillTool(registry=self._skill_registry, name=self.SKILL_TOOL_NAME)
+        skill_tool = SkillTool(
+            registry=self._skill_registry,
+            name=self.SKILL_TOOL_NAME,
+            read_file_tool_name=self.READ_FILE_TOOL_NAME,
+        )
         skill_tool.set_mas(self.mas)
         self.mas.oxy_name_to_oxy[self.SKILL_TOOL_NAME] = skill_tool
-
-        # Register ContextEvictionTool (optional)
-        if self.enable_context_eviction:
-            eviction_tool = ContextEvictionTool(name=self.EVICTION_TOOL_NAME)
-            eviction_tool.set_mas(self.mas)
-            self.mas.oxy_name_to_oxy[self.EVICTION_TOOL_NAME] = eviction_tool
 
         #  Register ReadFileTool (optional)
         if self.enable_file_reading:
@@ -267,11 +251,9 @@ class SkillAgent(ReActAgent):
                 + "\n\n---\n\n".join(content_blocks)
             )
 
-        # Phase 6: Add skill tool (and optional eviction tool) to this agent's tools
+        # Phase 6: Add skill tool (and optional read_file tool) to this agent's tools
         if self.SKILL_TOOL_NAME not in self.tools:
             self.tools.append(self.SKILL_TOOL_NAME)
-        if self.enable_context_eviction and self.EVICTION_TOOL_NAME not in self.tools:
-            self.tools.append(self.EVICTION_TOOL_NAME)
         if self.enable_file_reading and self.READ_FILE_TOOL_NAME not in self.tools:
             self.tools.append(self.READ_FILE_TOOL_NAME)
 
@@ -291,58 +273,6 @@ class SkillAgent(ReActAgent):
         oxy_request = await super()._before_execute(oxy_request)
         oxy_request.set_arguments("skill_section", self._cached_skill_section)
         return oxy_request
-
-    def _build_instruction_for_round(self, oxy_request: OxyRequest) -> str:
-        """Override: apply context eviction filtering each round."""
-        return self._build_instruction_with_eviction(oxy_request.arguments, oxy_request)
-
-    def _build_instruction_with_eviction(
-        self, arguments: dict, oxy_request: OxyRequest
-    ) -> str:
-        """Build instruction prompt, filtering out evicted tools and skills.
-
-        Called every ReAct round so evictions take effect immediately.
-        """
-        evicted_tools = get_evicted_tools(oxy_request)
-        evicted_skills = get_evicted_skills(oxy_request)
-
-        if not evicted_tools and not evicted_skills:
-            return self._build_instruction(arguments)
-
-        # Rebuild skill_section without evicted skills
-        if evicted_skills:
-            skill_section = self._build_skill_section(evicted_skills=evicted_skills)
-            patched_args = dict(arguments)
-            patched_args["skill_section"] = skill_section
-        else:
-            patched_args = arguments
-
-        instruction = self._build_instruction(patched_args)
-
-        # Strip tool descriptions for evicted tools (post-substitution filter)
-        if evicted_tools:
-            lines = instruction.splitlines()
-            filtered_lines = []
-            skip_until_blank = False
-            for line in lines:
-                if skip_until_blank:
-                    # Skip tool block lines until we hit an empty line / next tool
-                    if line.strip() == "" or (
-                        line.startswith("- **") and line.strip().endswith("**")
-                    ):
-                        skip_until_blank = False
-                    else:
-                        continue
-                # Check if this line starts a tool description for an evicted tool
-                if any(
-                    line.strip().startswith(f"- **{t}") for t in evicted_tools
-                ):
-                    skip_until_blank = True
-                    continue
-                filtered_lines.append(line)
-            instruction = "\n".join(filtered_lines)
-
-        return instruction
 
     def _parse_llm_response(
         self, ori_response: str, oxy_request: OxyRequest = None
@@ -366,6 +296,22 @@ class SkillAgent(ReActAgent):
             if not valid:
                 raise ValueError("No valid tool_name found in parsed JSON")
 
+            # Deduplicate: when LLM emits the same tool_name + arguments
+            # multiple times (common with DeepSeek-V3), keep only the first.
+            seen = set()
+            deduped = []
+            for call in valid:
+                key = (call.get("tool_name", ""), json.dumps(call.get("arguments", {}), sort_keys=True))
+                if key not in seen:
+                    seen.add(key)
+                    deduped.append(call)
+                else:
+                    logger.debug(
+                        f"[SkillAgent] Deduplicated tool call: "
+                        f"{call.get('tool_name')}({call.get('arguments')})"
+                    )
+            valid = deduped
+
             if len(valid) == 1:
                 return LLMResponse(
                     state=LLMState.TOOL_CALL,
@@ -383,23 +329,16 @@ class SkillAgent(ReActAgent):
             # Delegate to parent for ANSWER / ERROR_PARSE handling
             return super()._parse_llm_response(ori_response, oxy_request)
 
-    def _build_skill_section(self, evicted_skills: Optional[set] = None) -> str:
+    def _build_skill_section(self) -> str:
         """Build the complete dynamic skill section for prompt injection.
-
-        Args:
-            evicted_skills: Optional set of skill names to exclude (for context eviction).
 
         Returns empty string when no skills exist (no orphaned headers).
         Includes: invocable skills and auto-injected content.
         """
         parts = []
-        evicted = evicted_skills or set()
 
         # 1. Model-invocable skills (called via skill tool)
-        invocable = [
-            s for s in self._skill_registry.list_invocable()
-            if s.name not in evicted
-        ]
+        invocable = self._skill_registry.list_invocable()
         if invocable:
             entries = [s.to_prompt_entry() for s in invocable]
             parts.append(

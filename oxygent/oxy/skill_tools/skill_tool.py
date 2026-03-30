@@ -56,10 +56,12 @@ class SkillTool(BaseTool):
     )
 
     _registry: SkillRegistry = PrivateAttr(default=None)
+    _read_file_tool_name: str = PrivateAttr(default="read_file")
 
-    def __init__(self, registry: SkillRegistry, **kwargs):
+    def __init__(self, registry: SkillRegistry, read_file_tool_name: str = "read_file", **kwargs):
         super().__init__(**kwargs)
         self._registry = registry
+        self._read_file_tool_name = read_file_tool_name
 
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         """Execute the skill invocation.
@@ -120,6 +122,11 @@ class SkillTool(BaseTool):
 
         # Source path so LLM can resolve relative file references naturally
         skill_source = str(metadata.skill_path.resolve())
+
+        # Update ReadFileTool's context dir for relative path fallback
+        read_tool = self.mas.oxy_name_to_oxy.get(self._read_file_tool_name) if self.mas else None
+        if read_tool and hasattr(read_tool, "set_skill_context_dir"):
+            read_tool.set_skill_context_dir(str(metadata.skill_path.parent.resolve()))
 
         # Build formatted output with <skill-instructions> tags
         args_attr = f' args="{escape_xml_attr(args)}"' if args else ""
