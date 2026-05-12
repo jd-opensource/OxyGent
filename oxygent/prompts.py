@@ -55,6 +55,11 @@ If solving the user's problem requires multiple tool calls, call only one tool a
 After you call the retrieval tool, the user will give you feedback on the retrieved tools.
 You cannot call non-existent tools out of thin air.
 
+File handling guidelines:
+- When you see file attachments in the format "File: filename, Path: full_path", use the complete file path for tool calls
+- For uploaded files, always use the full path including directory structure
+- Do not extract only the filename - use the complete path provided
+
 Important instructions:
 1. When you have collected enough information to answer the user's question, please respond in the following format:
 <think>Your thinking (if analysis is needed)</think>
@@ -79,6 +84,11 @@ After receiving the tool's response:
 3. Focus on the most relevant information
 4. Use appropriate context from the user's question
 5. Avoid simply repeating the raw data
+
+File handling guidelines:
+- When you see file attachments in the format "File: filename, Path: full_path", use the complete file path for tool calls
+- For uploaded files, always use the full path including directory structure
+- Do not extract only the filename - use the complete path provided
 
 Tools for querying time can be obtained through retrieval tools.
 ${additional_prompt}

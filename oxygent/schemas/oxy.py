@@ -476,15 +476,17 @@ class OxyRequest(BaseModel):
         md_attachments = []
         for i, attachment in enumerate(self.arguments.get("attachments", [])):
             if attachment.startswith("../static/"):
-                attachment = f"{Config.get_cache_save_dir()}/uploads{attachment[9:]}"
+                relative_path = attachment[9:].lstrip('/')
+                attachment = f"{Config.get_cache_save_dir()}/uploads/{relative_path}"
             is_image_flag = "!" if is_image(attachment) else ""
             attachment_base_name = os.path.basename(attachment)
+            # Generate a clearer format to help LLM correctly understand the path
             md_attachments.append(
-                f"{is_image_flag}[{attachment_base_name}]({attachment})"
+                f"{is_image_flag}File: {attachment_base_name}, Path: {attachment}"
             )
         attachments_str = "\n".join(md_attachments)
         if attachments_str:
-            attachments_str += " "
+            attachments_str += "\n\n"
 
         if master_level:
             return attachments_str + self.shared_data.get("query", "")
