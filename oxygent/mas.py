@@ -1417,7 +1417,9 @@ class MAS(BaseModel):
                     for param in (
                         route.dependant.query_params + route.dependant.body_params
                     ):
-                        param_type = param.type_
+                        param_type = (
+                            getattr(param, "type_", None) or param.field_info.annotation
+                        )
                         # Type conversion (simple implementation)
                         if param_type is str:
                             t = "string"
@@ -1433,7 +1435,10 @@ class MAS(BaseModel):
                             "type": t,
                             "description": param.field_info.description or "",
                         }
-                        if param.required:
+                        if (
+                            getattr(param, "required", None)
+                            or param.field_info.is_required()
+                        ):
                             input_schema["required"].append(param.name)
                     banks.append(
                         {
