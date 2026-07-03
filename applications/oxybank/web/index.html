@@ -1,13 +1,117 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/prod_data_oxybank_icon.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OxyBank</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - Bank管理</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="banks.title">Bank管理</h1>
+                <button class="btn btn-primary" onclick="openCreateModal()" data-i18n="banks.create">创建Bank</button>
+            </div>
+            <div class="card-grid" id="bankGrid"></div>
+            <div class="empty-state" id="emptyState" style="display:none;">
+                <h3 data-i18n="common.empty">暂无数据</h3>
+                <p>点击"创建Bank"开始</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Bank Modal — 3-step wizard -->
+    <div class="modal-overlay" id="createModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 data-i18n="banks.create">创建Bank</h2>
+                <button class="modal-close" onclick="OxyBank.closeModal('#createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Step indicators -->
+                <div class="wizard-steps" style="display:flex;gap:4px;margin-bottom:20px;">
+                    <div class="wizard-step active" data-step="1"><span class="wizard-num">1</span> <span data-i18n="banks.step_basic">基本信息</span></div>
+                    <div class="wizard-step" data-step="2"><span class="wizard-num">2</span> <span data-i18n="banks.step_schema">Schema定义</span></div>
+                    <div class="wizard-step" data-step="3"><span class="wizard-num">3</span> <span data-i18n="banks.step_retrieval">检索接口</span></div>
+                </div>
+
+                <!-- Step 1: Basic Info -->
+                <div class="wizard-panel" id="step1">
+                    <div class="form-group">
+                        <label data-i18n="banks.name">Bank名称</label>
+                        <input type="text" class="form-control" id="bankName">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="banks.desc">Bank描述（可选）</label>
+                        <textarea class="form-control" id="bankDesc" rows="2"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="banks.embedding_backend">Embedding后端</label>
+                        <select class="form-control" id="embeddingBackend">
+                            <option value="triton">Triton</option>
+                            <option value="openai">OpenAI Compatible</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Step 2: Schema -->
+                <div class="wizard-panel" id="step2" style="display:none;">
+                    <div class="form-group">
+                        <label data-i18n="banks.schema">Schema定义</label>
+                        <div class="mode-switcher" id="schemaModeSwitch">
+                            <button class="active" data-mode="scene" data-i18n="banks.schema_mode.scene">场景化</button>
+                            <button data-mode="personalized" data-i18n="banks.schema_mode.personalized">个性化</button>
+                        </div>
+                    </div>
+                    <div id="personalizedSchema" style="display:none;">
+                        <div class="form-check" style="margin-bottom:12px;">
+                            <input type="checkbox" id="sysChunkCheck">
+                            <label for="sysChunkCheck" data-i18n="banks.sys_chunk">启用文档切分（sys_chunk字段）</label>
+                        </div>
+                        <div id="schemaFields"></div>
+                        <div style="display:flex;gap:8px;margin-bottom:12px;">
+                            <button class="btn btn-sm btn-secondary" onclick="addSchemaField()" data-i18n="banks.add_field">添加字段</button>
+                            <label class="btn btn-sm btn-secondary" style="cursor:pointer;">
+                                <span data-i18n="banks.upload_schema">上传CSV/XLSX解析Schema</span>
+                                <input type="file" accept=".csv,.xlsx,.xls" style="display:none;" onchange="parseSchemaFile(this)">
+                            </label>
+                        </div>
+                    </div>
+                    <div id="sceneSchema">
+                        <div class="form-group">
+                            <label data-i18n="banks.scene_select">选择场景</label>
+                            <select class="form-control" id="sceneSelect"></select>
+                        </div>
+                        <div id="scenePreview"></div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Retrieval APIs -->
+                <div class="wizard-panel" id="step3" style="display:none;">
+                    <p style="font-size:13px;color:var(--gray-500);margin-bottom:12px;" data-i18n="banks.retrieval_hint">系统会自动创建一个默认检索接口（全字段精确匹配），您也可以额外添加自定义检索接口。</p>
+                    <div id="retrievalApis"></div>
+                    <button class="btn btn-sm btn-secondary" onclick="addRetrievalApi()" data-i18n="banks.add_api">添加检索接口</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="btnWizardPrev" onclick="wizardPrev()" style="display:none;" data-i18n="common.prev">上一步</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-secondary" onclick="OxyBank.closeModal('#createModal')" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" id="btnWizardNext" onclick="wizardNext()" data-i18n="banks.next_step">下一步</button>
+                <button class="btn btn-primary" id="btnWizardSubmit" onclick="submitCreateBank()" style="display:none;" data-i18n="common.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/banks.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('index'); });
+    </script>
+</body>
 </html>

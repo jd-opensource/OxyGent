@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 数据管理</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="nav.data">数据管理</h1>
+                <div style="display:flex;gap:8px;">
+                    <button class="btn btn-secondary" onclick="openDepositModal()" data-i18n="data.deposit">API存储</button>
+                    <label class="btn btn-primary" style="cursor:pointer;">
+                        <span data-i18n="detail.upload_file">上传文件</span>
+                        <input type="file" id="fileUpload" style="display:none;" accept=".docx,.pdf,.txt,.md,.xlsx,.xls,.csv" multiple>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Upload Progress -->
+            <div id="uploadProgress" style="display:none;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span id="uploadFileName" style="font-size:13px;color:var(--gray-600);"></span>
+                    <span id="uploadPercent" style="font-size:13px;font-weight:600;color:var(--primary);"></span>
+                </div>
+                <div style="height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden;">
+                    <div id="uploadBar" style="height:100%;background:var(--primary);border-radius:3px;width:0%;transition:width .2s;"></div>
+                </div>
+                <div id="uploadStatus" style="font-size:12px;color:var(--gray-400);margin-top:4px;"></div>
+            </div>
+
+            <!-- Document Table -->
+            <div class="table-wrapper">
+                <table id="docTable">
+                    <thead>
+                        <tr>
+                            <th data-i18n="detail.filename">文件名</th>
+                            <th data-i18n="detail.file_type">类型</th>
+                            <th data-i18n="detail.sample_count">样本数</th>
+                            <th data-i18n="detail.upload_time">上传时间</th>
+                            <th data-i18n="common.actions">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+
+            <!-- Samples Table -->
+            <div id="samplesSection" style="display:none;margin-top:24px;">
+                <div class="page-header">
+                    <h2 data-i18n="detail.samples">样本列表</h2>
+                    <button class="btn btn-sm btn-secondary" onclick="closeSamples()">×</button>
+                </div>
+                <div class="table-wrapper" style="overflow-x:auto;max-width:100%;">
+                    <table id="sampleTable" style="min-width:max-content;">
+                        <thead><tr id="sampleHead"></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="samplePagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Sample Detail Modal -->
+    <div class="modal-overlay" id="sampleModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 data-i18n="detail.sample_detail">样本详情</h2>
+                <button class="modal-close" onclick="OxyBank.closeModal('#sampleModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="sampleDetail"></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="showSampleHistory()" data-i18n="detail.history">修改历史</button>
+                <div style="flex:1;"></div>
+                <button class="btn btn-primary" onclick="saveSample()" data-i18n="common.save">保存</button>
+                <button class="btn btn-secondary" onclick="OxyBank.closeModal('#sampleModal')" data-i18n="common.close">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Deposit Modal -->
+    <div class="modal-overlay" id="depositModal">
+        <div class="modal modal-lg">
+            <div class="modal-header">
+                <h2 data-i18n="data.deposit">API存储</h2>
+                <button class="modal-close" onclick="OxyBank.closeModal('#depositModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label data-i18n="data.deposit_name">批次名称（可选）</label>
+                    <input type="text" class="form-control" id="depositName" placeholder="deposit_2024...">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="data.deposit_data">数据（JSON数组）</label>
+                    <textarea class="form-control" id="depositData" rows="12" placeholder='[{"field1": "value1", "field2": "value2"}, ...]'></textarea>
+                </div>
+                <p style="font-size:12px;color:var(--gray-400);" data-i18n="data.deposit_hint">每条记录可包含任意字段，系统字段（sys_status等）未提供时使用默认值。</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="OxyBank.closeModal('#depositModal')" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" onclick="submitDeposit()" data-i18n="data.deposit_submit">提交存储</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/data.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('data'); });
+    </script>
+</body>
+</html>

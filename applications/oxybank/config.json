@@ -1,0 +1,87 @@
+{
+  "//_readme": [
+    "OxyBank 支持多环境配置：先套 default 段作为默认值，再用 OXYBANK_ENV 指向",
+    "的同名段做深度合并覆盖（详见 app/config.py::load_config）。",
+    "",
+    "本文件所有敏感值均为占位符，需要替换成你自己的：",
+    "  - es.hosts / user / password",
+    "  - vearch.master_url / router_url",
+    "  - triton.url（仅在有 Bank 用 triton embedding 时需要）",
+    "  - openai.api_key（仅在有 Bank 用 openai embedding 时需要）",
+    "  - llm.api_key / base_url（AI 模板设计助手 + Inline agent 会用）",
+    "  - auth.secret_key（务必换成强随机串）"
+  ],
+
+  "default": {
+    "es": {
+      "index_prefix": "oxybank",
+      "timeout": 60
+    },
+    "vearch": {
+      "db_name": "oxybank_db"
+    },
+    "triton": {
+      "url": "http://<triton-host>:<port>/v2/models/embedding/infer"
+    },
+    "openai": {
+      "api_key": "",
+      "base_url": "https://api.openai.com/v1",
+      "model": "text-embedding-3-small",
+      "batch_size": 100,
+      "max_concurrent": 4
+    },
+    "llm": {
+      "api_key": "EMPTY",
+      "base_url": "http://<llm-host>:<port>/v1/chat/completions",
+      "model": "gpt"
+    },
+    "annotation": {
+      "max_concurrency": 5,
+      "agent_timeout": 120
+    },
+    "chunking": {
+      "chunk_size": 512,
+      "chunk_overlap": 50
+    },
+    "server": {
+      "host": "0.0.0.0",
+      "port": 8080
+    },
+    "auth": {
+      "secret_key": "change-me-to-a-strong-random-string",
+      "enabled": false
+    }
+  },
+
+  "development": {
+    "es": {
+      "hosts": ["<dev-es-host>:9200"],
+      "user": "<dev-user>",
+      "password": "<dev-password>"
+    },
+    "vearch": {
+      "master_url": "http://<dev-vearch-master>",
+      "router_url": "http://<dev-vearch-router>"
+    },
+    "auth": {
+      "enabled": false
+    }
+  },
+
+  "production": {
+    "es": {
+      "hosts": ["<prod-es-host>:9200"],
+      "user": "<prod-user>",
+      "password": "<prod-password>"
+    },
+    "vearch": {
+      "master_url": "http://<prod-vearch-master>",
+      "router_url": "http://<prod-vearch-router>",
+      "db_name": "oxybank_db_prod"
+    },
+    "auth": {
+      "secret_key": "<change-me-to-a-strong-random-string>",
+      "enabled": true
+    }
+  }
+}

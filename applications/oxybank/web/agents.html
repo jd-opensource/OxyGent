@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 标注Agent</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .flow-container { background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-bottom:20px;overflow-x:auto; }
+        .flow-graph { display:flex;align-items:center;gap:0;min-height:80px;padding:10px 0; }
+        .flow-node { display:flex;flex-direction:column;align-items:center;min-width:90px; }
+        .flow-status { background:var(--primary-light);color:var(--primary);padding:6px 14px;border-radius:20px;font-size:13px;font-weight:600;white-space:nowrap; }
+        .flow-arrow { display:flex;flex-direction:column;align-items:center;padding:0 4px;color:var(--gray-400); }
+        .flow-arrow-line { font-size:20px;line-height:1; }
+        .flow-arrow-label { font-size:10px;color:var(--gray-500);max-width:80px;text-align:center;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+        .agent-card { background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center; }
+        .agent-info { flex:1; }
+        .agent-info h4 { font-size:15px;margin:0 0 4px; }
+        .agent-info .agent-meta { font-size:12px;color:var(--gray-500); }
+        .agent-actions { display:flex;gap:6px;align-items:center; }
+        .switch { position:relative;display:inline-block;width:36px;height:20px; }
+        .switch input { opacity:0;width:0;height:0; }
+        .switch .slider { position:absolute;cursor:pointer;inset:0;background:var(--gray-300);border-radius:20px;transition:.2s; }
+        .switch .slider:before { content:"";position:absolute;height:16px;width:16px;left:2px;bottom:2px;background:#fff;border-radius:50%;transition:.2s; }
+        .switch input:checked + .slider { background:var(--success); }
+        .switch input:checked + .slider:before { transform:translateX(16px); }
+        .log-row { display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px; }
+        .log-status { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+        .log-status.ok { background:var(--success); }
+        .log-status.fail { background:var(--danger); }
+
+        /* Trigger Status picker — reuses the "output field chip" pattern from
+           the New Bank retrieval-API editor (see .output-chip in style.css) so
+           the two multi-selects look and feel the same across the app. */
+        .status-picker { display:flex;flex-wrap:wrap;gap:4px;padding:4px 0 2px; }
+        .status-picker:empty::before { content:'—';color:var(--gray-400);font-size:12px; }
+        .status-chip {
+            display:inline-flex;align-items:center;
+            padding:2px 8px;
+            border:1px solid var(--gray-300);
+            border-radius:10px;
+            font-size:11px;
+            cursor:pointer;user-select:none;
+            transition:all .15s;
+            color:var(--gray-500);
+            background:#fff;
+        }
+        .status-chip:hover { border-color:var(--primary);color:var(--primary); }
+        .status-chip input { display:none; }
+        .status-chip:has(input:checked) {
+            background:var(--primary);
+            border-color:var(--primary);
+            color:#fff;
+        }
+        .form-control-sm { font-size:12px;padding:4px 8px;height:auto; }
+
+        /* "Add custom status" row inside the Trigger Status picker.
+           - Input takes the leftover space with flex:1 so the button gets a
+             stable width (previously flex-basis auto let the button shrink
+             enough that "添加" wrapped to two lines).
+           - Button gets an explicit min-height + white-space:nowrap so its
+             baseline matches the input's — the global .btn-sm and .form-control-sm
+             padding don't render to the same box height on their own. */
+        .status-picker-add-row { display:flex;gap:6px;margin-top:6px;align-items:stretch; }
+        .status-picker-add-row .form-control-sm { flex:1;min-width:0; }
+        .status-picker-add-row .btn { white-space:nowrap;padding:4px 12px;font-size:12px;line-height:20px; }
+
+        /* Inline agent step editor. Each step is a card with:
+             - a small header showing the step type + delete button
+             - a body with the step's parameters (varies by type)
+           `if` steps render two nested sublists (then / else) via .agent-steps-nested. */
+        .agent-steps-list { display:flex;flex-direction:column;gap:8px; }
+        .agent-step { border:1px solid var(--gray-200);border-radius:var(--radius);background:#fafbfc;padding:8px 10px; }
+        .agent-step-head { display:flex;align-items:center;justify-content:space-between;font-size:12px;color:var(--gray-500);margin-bottom:6px;font-weight:600;text-transform:uppercase; }
+        .agent-step-head .agent-step-type { color:var(--primary); }
+        .agent-step-body { display:flex;flex-direction:column;gap:6px;font-size:13px; }
+        /* Uniform sizing for every editable control inside a step card:
+           font-size 12, padding 5px 8px, line-height 20px → outer height
+           5 + 20 + 5 + 2(border) = 32px on all of them (input / textarea / select
+           and the custom-select trigger div). Without an explicit line-height,
+           inputs pick up the body's 1.5x line-height (18px) while the trigger's
+           flex-centred span uses ~normal (14.4px), producing subtly different
+           heights that read as visually off. */
+        .agent-step-body input,
+        .agent-step-body textarea,
+        .agent-step-body select,
+        .agent-step-body .custom-select-trigger {
+            font-size:12px;
+            padding:5px 8px;
+            line-height:20px;
+            box-sizing:border-box;
+        }
+        .agent-step-body textarea { font-family:'SF Mono',Menlo,Consolas,monospace;resize:vertical; }
+        .agent-step-body label { font-size:11px;color:var(--gray-500);margin-bottom:2px; }
+        .agent-step-body .agent-step-row { display:flex;gap:6px;align-items:center; }
+        /* Nested THEN / ELSE branches. Uses the same flex-column + gap pattern as
+           the top-level .agent-steps-list so multiple step cards inside a branch
+           get consistent spacing between them (default block flow gives none). */
+        .agent-steps-nested { display:flex;flex-direction:column;gap:8px;margin-top:6px;padding:6px 8px;background:#fff;border-left:2px solid var(--primary-light); }
+        .agent-steps-nested .agent-step { background:#fafbfc; }
+        .agent-steps-nested .agent-steps-nested-label { font-size:11px;font-weight:600;color:var(--gray-500);text-transform:uppercase;margin-bottom:4px; }
+
+        /* Compact inline row used by set_field steps: [Label] [input] [Label] [input]
+           on a single line. Labels stay small and grey; inputs grow via flex:1 so long
+           values still get room. Wraps to 2 rows on very narrow modals. */
+        .agent-step-inline { display:flex;align-items:center;gap:6px;flex-wrap:wrap; }
+        .agent-step-inline-label { font-size:11px;color:var(--gray-500);white-space:nowrap; }
+        .agent-step-inline-input { flex:1;min-width:120px; }
+        /* The upgraded custom-select wrapper (see common.js::upgradeSelects) defaults
+           to width:100%, which inside our flex row would steal the whole line and
+           push the "Value" label + input to a second row. In this inline layout we
+           want the wrapper to behave like a flex item: shrink to available space,
+           share width evenly with the value input. */
+        .agent-step-inline .custom-select { flex:1;width:auto;min-width:120px; }
+        /* IF-step condition row uses .agent-step-row (var | op | value) — the middle
+           select gets upgraded into a custom-select wrapper too. Constrain that
+           wrapper to a narrower slot than the two flanking inputs so the operator
+           dropdown doesn't dominate the row. */
+        .agent-step-row .custom-select { flex:1;width:auto;min-width:110px;max-width:160px; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="nav.agents">标注Agent</h1>
+                <button class="btn btn-primary" onclick="openAddAgent()" data-i18n="agents.add">添加Agent</button>
+            </div>
+
+            <!-- Flow Visualization -->
+            <div class="flow-container">
+                <div class="api-section-title" data-i18n="agents.flow_title" style="margin-bottom:8px;">状态流转</div>
+                <div class="flow-graph" id="flowGraph"></div>
+            </div>
+
+            <!-- Agent Cards -->
+            <div id="agentCards"></div>
+
+            <!-- Execution Logs -->
+            <div style="background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;margin-top:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <div class="api-section-title" data-i18n="agents.logs_title" style="margin:0;">执行日志</div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <select class="form-control" id="logAgentFilter" style="width:auto;font-size:13px;">
+                            <option value="">All Agents</option>
+                        </select>
+                        <select class="form-control" id="logStatusFilter" style="width:auto;font-size:13px;">
+                            <option value="">All</option>
+                            <option value="true" data-i18n="agents.success">成功</option>
+                            <option value="false" data-i18n="agents.failed">失败</option>
+                        </select>
+                        <button class="btn btn-sm btn-secondary" onclick="loadLogs()" data-i18n="common.search" style="white-space:nowrap;">刷新</button>
+                    </div>
+                </div>
+                <div id="logList"></div>
+                <div class="pagination" id="logPagination"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit Agent Modal -->
+    <div class="modal-overlay" id="agentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="agentModalTitle" data-i18n="agents.add">添加Agent</h2>
+                <button class="modal-close" onclick="OxyBank.closeModal('#agentModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editAgentId">
+                <div class="form-group">
+                    <label data-i18n="agents.agent_name">Agent名称</label>
+                    <input type="text" class="form-control" id="agentName">
+                </div>
+
+                <!-- Kind switcher — URL vs inline (front-end editable steps) -->
+                <div class="form-group">
+                    <label data-i18n="agents.kind">Agent 类型</label>
+                    <div class="mode-switcher" id="agentKindSwitch">
+                        <button type="button" class="active" data-kind="url" data-i18n="agents.kind_url">外部服务 (URL)</button>
+                        <button type="button" data-kind="inline" data-i18n="agents.kind_inline">前端编辑 (Inline)</button>
+                    </div>
+                </div>
+
+                <!-- URL mode fields -->
+                <div id="agentUrlBlock">
+                    <div class="form-group">
+                        <label data-i18n="agents.agent_url">服务URL</label>
+                        <input type="text" class="form-control" id="agentUrl" placeholder="http://...">
+                    </div>
+                </div>
+
+                <!-- Inline mode fields — dynamically-built step list -->
+                <div id="agentInlineBlock" style="display:none;">
+                    <div class="form-group">
+                        <label data-i18n="agents.steps">执行步骤</label>
+                        <div id="agentStepsList" class="agent-steps-list"></div>
+                        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addStep('llm')" data-i18n="agents.step_add_llm">+ LLM</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addStep('set_field')" data-i18n="agents.step_add_set">+ 字段赋值</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="addStep('if')" data-i18n="agents.step_add_if">+ 条件分支</button>
+                        </div>
+                        <div class="form-hint" data-i18n-html="agents.inline_hint">
+                            步骤按顺序执行。可用变量：<code>{{sample.字段名}}</code> 引用当前样本字段；<code>{{steps.步骤名.output}}</code> 引用某个 LLM 步骤的输出。
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label data-i18n="agents.trigger_status">触发状态</label>
+                    <div id="agentStatusesPicker" class="status-picker"></div>
+                    <div class="status-picker-add-row">
+                        <input type="text" class="form-control form-control-sm" id="agentStatusCustom" data-i18n-placeholder="agents.add_custom_status" placeholder="自定义状态名...">
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="addCustomStatusOption()" data-i18n="common.add">添加</button>
+                    </div>
+                    <div class="form-hint" data-i18n="agents.trigger_hint">当sample的sys_status变为选中的任意状态时，自动调用该Agent</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="OxyBank.closeModal('#agentModal')" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" onclick="submitAgent()" data-i18n="common.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/agents.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('agents'); });
+    </script>
+</body>
+</html>

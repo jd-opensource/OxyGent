@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 标注模板</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/annotation-form.css">
+    <style>
+        .tpl-layout { display:flex;height:100%;overflow:hidden; }
+
+        /* Left column: template list */
+        .tpl-list-panel { width:200px;display:flex;flex-direction:column;border-right:1px solid var(--gray-200);background:#fff;flex-shrink:0; }
+        .tpl-list-header { padding:12px 14px;border-bottom:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:center; }
+        .tpl-list-header h2 { font-size:14px;margin:0; }
+        .tpl-list-body { flex:1;overflow-y:auto;padding:4px; }
+        .tpl-item { padding:8px 10px;border-radius:6px;cursor:pointer;font-size:12px;margin-bottom:2px;transition:background .1s; }
+        .tpl-item:hover { background:var(--gray-50); }
+        .tpl-item.active { background:var(--primary-light);color:var(--primary);font-weight:500; }
+        .tpl-item .tpl-builtin { font-size:10px;color:var(--gray-400);background:var(--gray-100);padding:1px 5px;border-radius:3px;margin-left:4px; }
+        .tpl-item .tpl-global { font-size:10px;color:var(--primary);background:var(--primary-light);padding:1px 5px;border-radius:3px;margin-left:4px; }
+
+        /* Center column: two stacked panels (JSON+test on top, AI chat below).
+           Both flex:1 by default so they share the vertical space; the AI panel is
+           capped so the JSON editor doesn't get squeezed on short viewports. The
+           divider between them comes from the AI panel's own header background —
+           no extra border between panels (fewer horizontal rules = less clutter). */
+        .tpl-center-col { flex:1;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--gray-200); }
+        .tpl-center-col > .tpl-panel:first-child { flex:1 1 60%; }
+        .tpl-center-col > .tpl-panel:last-child  { flex:1 1 40%;min-height:200px;max-height:45%; }
+
+        /* Generic panel chrome shared by both center-column panels and the preview panel */
+        .tpl-panel { display:flex;flex-direction:column;background:#fff;overflow:hidden;min-height:0; }
+        .tpl-panel-header { padding:10px 16px;border-bottom:1px solid var(--gray-200);font-size:13px;font-weight:600;color:var(--gray-600);flex-shrink:0; }
+        .tpl-panel-body { flex:1;overflow-y:auto;padding:16px;min-height:0; }
+        .tpl-panel-footer { padding:10px 16px;border-top:1px solid var(--gray-200);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0; }
+
+        /* Header with inline actions (delete / save on the right). Avoids a separate
+           footer bar, which would double up horizontal rules against the next panel. */
+        .tpl-panel-header-actions { display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 16px; }
+        .tpl-header-actions { display:flex;gap:6px; }
+
+        /* AI Chat panel — header styled as a chat "section title" so it clearly reads
+           as the title of the conversation below, not just another panel divider. */
+        .tpl-chat-panel .tpl-chat-header {
+            background:var(--primary-light);
+            color:var(--primary);
+            display:flex;align-items:center;gap:8px;
+            border-bottom:none;
+            border-top:1px solid var(--gray-200);
+            font-weight:600;
+        }
+        .tpl-chat-icon { font-size:15px; }
+
+        /* AI chat panel — has its own bubbles + input row */
+        .tpl-chat-messages { flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;min-height:0; }
+        .tpl-chat-input { padding:10px 16px;border-top:1px solid var(--gray-200);display:flex;gap:8px;flex-shrink:0; }
+        .tpl-chat-input input { flex:1; }
+        .chat-bubble { max-width:85%;padding:8px 12px;border-radius:10px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word; }
+        .chat-bubble.user { align-self:flex-end;background:var(--primary);color:#fff;border-bottom-right-radius:4px; }
+        .chat-bubble.assistant { align-self:flex-start;background:var(--gray-100);color:var(--gray-800);border-bottom-left-radius:4px; }
+
+        /* Right column: preview — matches annotation.html anno-detail-panel (480px + 20px padding) */
+        .tpl-preview-panel { width:480px;flex-shrink:0; }
+        .tpl-preview-panel .tpl-panel-body { padding:20px; }
+
+        .tpl-empty-hint { color:var(--gray-400);font-size:13px;text-align:center;padding-top:40px; }
+
+        /* Preview form styles (.pv-section / .pv-section-title / .pv-readonly /
+           .pv-radio-group) live in css/annotation-form.css so they stay pixel-perfect
+           consistent with annotation.html. Do not redefine them here. */
+
+        .tpl-json-editable { width:100%;font-size:11px;font-family:'SF Mono',Menlo,Consolas,monospace;line-height:1.5;padding:10px;resize:vertical;white-space:pre;overflow:auto; }
+        .tpl-json-editable.invalid { border-color:var(--danger); }
+        .tpl-json-error { color:var(--danger);font-size:11px;margin-top:4px;font-family:'SF Mono',Menlo,Consolas,monospace; }
+
+        /* Side-by-side layout for template-JSON | test-data. On narrow viewports we
+           fall back to a single stacked column so neither editor gets squeezed. */
+        .tpl-json-cols {
+            display:flex;gap:12px;
+            align-items:stretch;   /* both columns match panel body height */
+            height:100%;
+        }
+        /* Panel body containing the two-column layout switches to flex so .tpl-json-cols
+           can honor height:100% and the left textarea can fill it. Overflow is disabled
+           because the two columns manage their own scroll (textarea + result box). */
+        .tpl-panel-body:has(> .tpl-json-cols) { display:flex;flex-direction:column;overflow:hidden; }
+        .tpl-json-cols .tpl-json-col { flex:1 1 0;min-width:0;margin-bottom:0;display:flex;flex-direction:column; }
+        /* Right column allows internal scroll so the result box (which appears after
+           "test save") doesn't push its actions off-screen. */
+        .tpl-json-col-right { overflow-y:auto; }
+
+        /* Left column: single textarea that fills the whole column height. */
+        .tpl-json-editable-fill { flex:1;min-height:0;resize:none; }
+
+        /* Right column: testarea + load button + result box stacked vertically.
+           Testarea gets a fixed initial height so all three pieces feel balanced. */
+        .tpl-testdata-editable { height:200px;min-height:120px;resize:vertical; }
+        .tpl-testdata-actions { display:flex;gap:6px;flex-wrap:wrap;margin-top:8px; }
+
+        @media (max-width: 1180px) {
+            .tpl-json-cols { flex-direction:column;gap:0;height:auto; }
+            .tpl-json-cols .tpl-json-col { flex:none;width:100%;margin-bottom:14px; }
+            .tpl-json-editable-fill { flex:none;height:260px;resize:vertical; }
+        }
+        .test-result-box { background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:220px;overflow-y:auto;margin-top:8px; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main" style="padding:0;overflow:hidden;min-height:0;height:100vh;">
+            <div class="tpl-layout">
+                <!-- Left: Template List -->
+                <div class="tpl-list-panel">
+                    <div class="tpl-list-header">
+                        <h2 data-i18n="templates.title">模板</h2>
+                        <button class="btn btn-icon btn-primary" onclick="newTemplate()" data-i18n-title="templates.new_hint" title="新建一个空白模板"
+                            style="font-size:16px;line-height:1;padding:2px 8px;height:auto;">+</button>
+                    </div>
+                    <div class="tpl-list-body" id="tplList"></div>
+                </div>
+
+                <!-- Center: stacked (JSON+test on top, AI chat below) -->
+                <div class="tpl-center-col">
+                    <!-- JSON & Test — action buttons live in the header so we don't
+                         stack a second horizontal rule right above the AI panel. -->
+                    <div class="tpl-panel">
+                        <div class="tpl-panel-header tpl-panel-header-actions">
+                            <span data-i18n="templates.json_test_panel">模板编辑与验证</span>
+                            <div class="tpl-header-actions">
+                                <button class="btn btn-sm btn-secondary" id="btnCloneTpl" onclick="cloneCurrentTemplate()" data-i18n="templates.clone">克隆</button>
+                                <button class="btn btn-sm btn-danger" id="btnDeleteTpl" onclick="deleteCurrentTemplate()" style="display:none;" data-i18n="common.delete">删除</button>
+                                <button class="btn btn-sm btn-primary" id="btnSaveTpl" onclick="saveTemplate()" data-i18n="templates.save_template">保存模板</button>
+                            </div>
+                        </div>
+                        <div class="tpl-panel-body">
+                            <div class="tpl-json-cols">
+                                <!-- Left column: template JSON — fills the full height so
+                                     users editing structure have as much room as possible. -->
+                                <div class="pv-section tpl-json-col tpl-json-col-fill">
+                                    <div class="pv-section-title" data-i18n="templates.tpl_json">模板 JSON</div>
+                                    <textarea id="tplJsonBlock" class="form-control tpl-json-editable tpl-json-editable-fill" spellcheck="false" placeholder="{}"></textarea>
+                                    <div id="tplJsonError" class="tpl-json-error" style="display:none;"></div>
+                                </div>
+                                <!-- Right column: test-data workflow — testarea + load button + result box.
+                                     All three stack top-down with fixed initial heights (user can resize
+                                     the textarea). Result box slot is always present so buttons don't jump
+                                     when it fills in. -->
+                                <div class="pv-section tpl-json-col tpl-json-col-right">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                                        <div class="pv-section-title" style="margin:0;" data-i18n="templates.test_data">测试数据 (JSON)</div>
+                                        <button class="btn btn-icon btn-secondary" onclick="fetchRandomSample()" style="font-size:11px;padding:2px 8px;height:auto;" data-i18n-title="templates.random_sample_hint" title="从当前 Bank 中随机取一条样本作为测试数据">
+                                            <span data-i18n="templates.random_sample">🎲 随机样本</span>
+                                        </button>
+                                    </div>
+                                    <textarea class="form-control tpl-json-editable tpl-testdata-editable" id="testDataInput" placeholder='{"query":"问题","answer":"回答"}'></textarea>
+                                    <div class="tpl-testdata-actions">
+                                        <button class="btn btn-sm btn-secondary" onclick="loadTestPreview()" data-i18n="templates.load_to_preview">加载到预览</button>
+                                    </div>
+                                    <div id="testResult"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Chat — header is deliberately styled as a chat section title
+                         (icon + primary color) so it reads as "the conversation below". -->
+                    <div class="tpl-panel tpl-chat-panel">
+                        <div class="tpl-panel-header tpl-chat-header">
+                            <span class="tpl-chat-icon">💬</span>
+                            <span data-i18n="templates.ai_designer">AI 模板设计助手</span>
+                        </div>
+                        <div class="tpl-chat-messages" id="chatMessages">
+                            <div class="chat-bubble assistant" data-i18n="templates.ai_intro">描述你需要的标注模板，我会帮你生成。例如："帮我做一个情感分析标注模板，标注正面/负面/中性"</div>
+                        </div>
+                        <div class="tpl-chat-input">
+                            <input type="text" class="form-control" id="chatInput" data-i18n-placeholder="templates.chat_placeholder" placeholder="描述你需要的标注模板..." onkeydown="if(event.key==='Enter')sendChat()">
+                            <button class="btn btn-primary btn-sm" onclick="sendChat()" style="white-space:nowrap;" data-i18n="common.send">发送</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Preview -->
+                <div class="tpl-panel tpl-preview-panel">
+                    <div class="tpl-panel-header" data-i18n="templates.preview_panel">预览</div>
+                    <div class="tpl-panel-body">
+                        <div id="previewRender">
+                            <p class="tpl-empty-hint" data-i18n="templates.preview_empty_hint">选择或生成模板后可预览标注表单</p>
+                        </div>
+                    </div>
+                    <div class="tpl-panel-footer">
+                        <div style="flex:1;"></div>
+                        <button class="btn btn-sm btn-primary" id="btnTestSave" onclick="runTest()" data-i18n="templates.test_save">测试保存</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/templates.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('templates'); });
+    </script>
+</body>
+</html>

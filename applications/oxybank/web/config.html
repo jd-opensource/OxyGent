@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 系统设置</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .config-section { background:#fff;border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:var(--shadow); }
+        .config-section h3 { margin:0 0 16px;font-size:15px; }
+        .config-grid { display:grid;grid-template-columns:1fr 1fr;gap:12px 24px; }
+        .config-readonly { background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius);padding:8px 12px;font-size:13px;font-family:monospace;color:var(--gray-600);word-break:break-all; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="config.title">系统设置</h1>
+            </div>
+
+            <!-- Annotation Settings (editable) -->
+            <div class="config-section">
+                <h3 data-i18n="config.annotation_section">标注设置</h3>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label data-i18n="config.max_concurrency">最大并发数</label>
+                        <input type="number" class="form-control" id="maxConcurrency" style="max-width:200px;">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="config.agent_timeout">Agent超时（秒）</label>
+                        <input type="number" class="form-control" id="agentTimeout" style="max-width:200px;">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveAnnotationConfig()" data-i18n="common.save">保存</button>
+            </div>
+
+            <!-- Triton Embedding Settings -->
+            <div class="config-section">
+                <h3>Triton Embedding</h3>
+                <div class="form-group" style="margin-top:12px;">
+                    <label data-i18n="config.triton_url">Triton URL</label>
+                    <input type="text" class="form-control" id="tritonUrl">
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveEmbeddingConfig()" data-i18n="common.save">保存</button>
+            </div>
+
+            <!-- OpenAI Embedding Settings -->
+            <div class="config-section">
+                <h3>OpenAI Embedding</h3>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label>Base URL</label>
+                        <input type="text" class="form-control" id="openaiBaseUrl">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" class="form-control" id="openaiModel">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveOpenaiEmbeddingConfig()" data-i18n="common.save">保存</button>
+            </div>
+
+            <!-- Chunking Settings (editable) -->
+            <div class="config-section">
+                <h3 data-i18n="config.chunking_section">文档切分设置</h3>
+                <div class="config-grid">
+                    <div class="form-group">
+                        <label data-i18n="config.chunk_size">块大小（tokens）</label>
+                        <input type="number" class="form-control" id="chunkSize" style="max-width:200px;">
+                    </div>
+                    <div class="form-group">
+                        <label data-i18n="config.chunk_overlap">块重叠（tokens）</label>
+                        <input type="number" class="form-control" id="chunkOverlap" style="max-width:200px;">
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="saveChunkingConfig()" data-i18n="common.save">保存</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('config'); });
+    </script>
+</body>
+</html>

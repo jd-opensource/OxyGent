@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 用户管理</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="users.title">用户管理</h1>
+                <button class="btn btn-primary" onclick="openAddUser()" data-i18n="users.add">添加用户</button>
+            </div>
+            <div class="table-wrapper">
+                <table id="userTable">
+                    <thead>
+                        <tr>
+                            <th data-i18n="users.username">用户名</th>
+                            <th data-i18n="users.display_name">显示名称</th>
+                            <th data-i18n="users.role">角色</th>
+                            <th data-i18n="users.created_at">创建时间</th>
+                            <th data-i18n="common.actions">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="userModalTitle" data-i18n="users.add">添加用户</h2>
+                <button class="modal-close" onclick="OxyBank.closeModal('#userModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editUserId">
+                <div class="form-group">
+                    <label data-i18n="users.username">用户名</label>
+                    <input type="text" class="form-control" id="userUsername">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="users.password">密码</label>
+                    <input type="password" class="form-control" id="userPassword">
+                    <div class="form-hint" id="passwordHint" style="display:none;" data-i18n="users.password_hint">留空则不修改密码</div>
+                </div>
+                <div class="form-group">
+                    <label data-i18n="users.display_name">显示名称</label>
+                    <input type="text" class="form-control" id="userDisplayName">
+                </div>
+                <div class="form-group">
+                    <label data-i18n="users.role">角色</label>
+                    <select class="form-control" id="userRole">
+                        <option value="admin">Admin</option>
+                        <option value="annotator" selected>Annotator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="OxyBank.closeModal('#userModal')" data-i18n="common.cancel">取消</button>
+                <button class="btn btn-primary" onclick="submitUser()" data-i18n="common.save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/users.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('users'); });
+    </script>
+</body>
+</html>

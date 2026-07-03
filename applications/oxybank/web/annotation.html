@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 标注工作台</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/annotation-form.css">
+    <style>
+        .anno-layout { display:flex;height:100%;overflow:hidden; }
+        .anno-list-panel { flex:1;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid var(--gray-200); }
+        .anno-list-header { padding:16px 20px;border-bottom:1px solid var(--gray-200);background:#fff; }
+        .anno-list-body { flex:1;overflow-y:auto;padding:0; }
+        .anno-list-footer { padding:8px 20px;border-top:1px solid var(--gray-200);background:#fff; }
+
+        .anno-detail-panel { width:480px;display:flex;flex-direction:column;background:#fff;transition:width .2s; }
+        .anno-detail-panel.collapsed { width:0;overflow:hidden; }
+        .anno-detail-header { padding:12px 20px;border-bottom:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:center;flex-shrink:0; }
+        .anno-detail-body { flex:1;overflow-y:auto;padding:20px; }
+        .anno-detail-footer { padding:12px 20px;border-top:1px solid var(--gray-200);display:flex;gap:8px;justify-content:space-between;flex-shrink:0; }
+
+        .sample-row { display:flex;align-items:center;padding:10px 20px;border-bottom:1px solid var(--gray-100);cursor:pointer;font-size:13px;transition:background .1s; }
+        .sample-row:hover { background:var(--gray-50); }
+        .sample-row.active { background:var(--primary-light);border-left:3px solid var(--primary); }
+        .sample-row .sr-priority { width:30px;text-align:center; }
+        /* Sample-row status column — width fits content instead of a hard 60px cap
+           (English tokens like "Annotated" / "To Annotate" don't fit 60px and would
+           wrap). Min-width keeps short values roughly column-aligned; max-width +
+           ellipsis prevents an overlong custom status from squeezing sr-overview. */
+        .sample-row .sr-status { min-width:70px;max-width:130px;margin-right:8px; }
+        .sample-row .sr-status .badge {
+            display:inline-block;max-width:100%;
+            white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+            vertical-align:middle;
+        }
+        .sample-row .sr-overview { flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-600); }
+        .sample-row .sr-remarks { max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-400);font-size:11px; }
+        .sample-row .sr-time { width:80px;text-align:right;color:var(--gray-400);font-size:11px; }
+
+        .progress-bar-container { background:#fff;border-radius:var(--radius);padding:10px 20px;margin-bottom:0; }
+        .progress-stats { display:flex;gap:16px;font-size:12px; }
+        .progress-stats .ps-item { display:flex;align-items:center;gap:4px; }
+        .progress-stats .ps-dot { width:8px;height:8px;border-radius:50%; }
+        .progress-track { height:4px;background:var(--gray-200);border-radius:2px;overflow:hidden;display:flex;margin-top:6px; }
+        .progress-track .seg { height:100%; }
+
+        /* .qa-section / .qa-section-title / .qa-readonly / .qa-radio-group live in
+           css/annotation-form.css so templates.html preview shares the exact same rules. */
+
+        .nav-btn { background:none;border:1px solid var(--gray-300);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;color:var(--gray-600); }
+        .nav-btn:hover:not(:disabled) { background:var(--gray-50); }
+        .nav-btn:disabled { opacity:.3;cursor:default; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main" style="padding:0;overflow:hidden;min-height:0;height:100vh;">
+            <div class="anno-layout">
+                <!-- Left: sample list -->
+                <div class="anno-list-panel">
+                    <div class="anno-list-header">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                            <h2 style="font-size:16px;margin:0;" data-i18n="annotation.title">标注工作台</h2>
+                            <div style="display:flex;gap:6px;align-items:center;">
+                                <select class="form-control" id="statusFilter" style="width:auto;font-size:12px;padding:4px 8px;">
+                                    <option value="" data-i18n="annotation.all">全部</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Inline progress -->
+                        <div class="progress-stats" id="progressStats"></div>
+                        <div class="progress-track" id="progressTrack"></div>
+                    </div>
+                    <div class="anno-list-body" id="sampleListBody"></div>
+                    <div class="anno-list-footer">
+                        <div class="pagination" id="annotationPagination" style="margin:0;"></div>
+                    </div>
+                </div>
+
+                <!-- Right: annotation detail -->
+                <div class="anno-detail-panel collapsed" id="detailPanel">
+                    <div class="anno-detail-header">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <button class="nav-btn" id="btnPrevSample" onclick="navSample(-1)">←</button>
+                            <span id="sampleCounter" style="font-size:12px;color:var(--gray-400);"></span>
+                            <button class="nav-btn" id="btnNextSample" onclick="navSample(1)">→</button>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" onclick="closeDetail()">×</button>
+                    </div>
+                    <div class="anno-detail-body" id="annoDetailBody"></div>
+                    <div class="anno-detail-footer">
+                        <button class="btn btn-secondary btn-sm" onclick="showAnnoHistory()" data-i18n="detail.history">修改历史</button>
+                        <div style="display:flex;gap:6px;">
+                            <button class="btn btn-danger btn-sm" onclick="annoRejectSample()" data-i18n="detail.reject">驳回</button>
+                            <button class="btn btn-primary btn-sm" onclick="annoSaveSample()" data-i18n="common.save">保存</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/annotation.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('annotation'); });
+    </script>
+</body>
+</html>

@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - 帮助</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .help-section {
+            background: #fff;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+        .help-section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background var(--transition);
+        }
+        .help-section-header:hover {
+            background: var(--gray-50);
+        }
+        .help-section-header h3 {
+            margin: 0;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .help-section-header .section-icon {
+            font-size: 18px;
+        }
+        .help-section-toggle {
+            width: 20px;
+            height: 20px;
+            color: var(--gray-400);
+            transition: transform var(--transition);
+            flex-shrink: 0;
+        }
+        .help-section.open .help-section-toggle {
+            transform: rotate(90deg);
+        }
+        .help-section-body {
+            display: none;
+            padding: 0 20px 20px;
+            font-size: 14px;
+            line-height: 1.8;
+            color: var(--gray-700);
+        }
+        .help-section.open .help-section-body {
+            display: block;
+        }
+        .help-section-body p {
+            margin: 0 0 10px;
+        }
+        .help-section-body ul {
+            margin: 0 0 10px;
+            padding-left: 20px;
+        }
+        .help-section-body li {
+            margin-bottom: 6px;
+        }
+        .help-section-body code {
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 12px;
+            font-family: 'SF Mono', Menlo, Consolas, monospace;
+            color: var(--primary);
+        }
+        .help-subsection {
+            border-left: 3px solid var(--gray-200);
+            padding: 6px 0 6px 14px;
+            margin: 12px 0;
+        }
+        .help-subsection h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            color: var(--gray-800);
+        }
+        .help-steps {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+        .help-steps li {
+            counter-increment: step;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .help-steps li::before {
+            content: counter(step);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 13px;
+            font-weight: 600;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .concept-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .concept-card {
+            background: var(--gray-50);
+            border: 1px solid var(--gray-200);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .faq-item {
+            border-bottom: 1px solid var(--gray-100);
+            padding: 14px 0;
+        }
+        .faq-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .faq-q {
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 6px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .faq-q::before {
+            content: 'Q';
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            border-radius: 4px;
+            background: var(--primary);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+        .faq-a {
+            color: var(--gray-600);
+            padding-left: 30px;
+        }
+        @media (max-width: 768px) {
+            .concept-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="help.title">帮助文档</h1>
+            </div>
+
+            <!-- Platform Overview -->
+            <div class="help-section open">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">📖</span><span data-i18n="help.overview_title">平台概述</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.overview_text">OxyBank 是一个 AI 资产管理平台，用于管理结构化数据资产（Bank）。平台支持文档上传与切分、数据标注、自动化Agent流水线、向量检索等功能，为AI应用提供高质量的数据基础设施。</p>
+                </div>
+            </div>
+
+            <!-- Core Concepts -->
+            <div class="help-section open">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">💡</span><span data-i18n="help.concepts_title">核心概念</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <div class="concept-grid">
+                        <div class="concept-card" data-i18n-html="help.concept_bank"><strong>Bank（数据银行）</strong>—— 数据的容器，类似于数据库中的"表"。每个Bank有自己的Schema（字段定义），支持自定义字段或选择预设场景模板。</div>
+                        <div class="concept-card" data-i18n-html="help.concept_sample"><strong>Sample（样本）</strong>—— Bank中的每条数据记录。样本有状态流转机制（如 Imported → Annotated → Published），支持版本历史追踪。</div>
+                        <div class="concept-card" data-i18n-html="help.concept_schema"><strong>Schema（数据模式）</strong>—— 定义Bank中样本的字段结构，包括字段名、类型（text/keyword/integer/float）和描述。</div>
+                        <div class="concept-card" data-i18n-html="help.concept_agent"><strong>Agent（标注代理）</strong>—— 外部AI服务，当样本状态变化时自动触发，实现自动化标注流水线。</div>
+                        <div class="concept-card" data-i18n-html="help.concept_template"><strong>Template（标注模板）</strong>—— 定义标注界面的表单结构，控制哪些字段可编辑、编辑方式（单选/下拉/文本）等。</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Start -->
+            <div class="help-section open">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">🚀</span><span data-i18n="help.quickstart_title">快速开始</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <ol class="help-steps">
+                        <li><span data-i18n="help.quickstart_step1">使用管理员账号登录系统（默认账号：admin / admin）</span></li>
+                        <li><span data-i18n="help.quickstart_step2">在「Bank管理」页面创建一个新的Bank，选择场景模板或自定义Schema</span></li>
+                        <li><span data-i18n="help.quickstart_step3">在「数据管理」页面上传文档或通过API存储数据</span></li>
+                        <li><span data-i18n="help.quickstart_step4">在「标注工作台」对样本进行人工标注或配置Agent自动处理</span></li>
+                        <li><span data-i18n="help.quickstart_step5">在「API Test」页面测试检索接口，集成到您的AI应用中</span></li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Fields & Retrieval Mechanics -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">🧩</span><span data-i18n="help.fields_title">字段与检索机制</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n-html="help.fields_intro">Bank 中的字段分为「系统字段」和「用户自定义字段」两类，每个字段都可以在检索接口中被用作过滤条件或向量检索条件。理解字段与检索的映射关系，有助于合理设计 Bank 结构。</p>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.fields_sys_title">系统字段（sys_*）</h4>
+                        <p data-i18n="help.fields_sys_desc">所有 Bank 通用的预设字段，由系统自动生成和维护，不需要用户手动定义：</p>
+                        <ul>
+                            <li data-i18n-html="help.fields_sys_id"><code>sys_sample_id</code> / <code>sys_document_id</code>：样本和文档的唯一ID</li>
+                            <li data-i18n-html="help.fields_sys_status"><code>sys_status</code>：样本状态（如 Imported / Annotated / Published），驱动Agent触发</li>
+                            <li data-i18n-html="help.fields_sys_meta"><code>sys_executor</code>、<code>sys_priority</code>、<code>sys_template</code>、<code>sys_overview</code>、<code>sys_remarks</code>、<code>sys_create_time</code>、<code>sys_update_time</code>：执行人、优先级、标注模板（可填模板 name 或 UUID）、摘要、备注、时间戳等元数据</li>
+                            <li data-i18n-html="help.fields_sys_chunk"><code>sys_chunk</code>：文档切分后的文本块（仅当 Bank 创建时勾选「启用文档切分」才启用）。这是唯一支持向量检索的系统字段。</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.fields_custom_title">用户自定义字段</h4>
+                        <p data-i18n-html="help.fields_custom_desc">创建 Bank 时通过 Schema 定义，或通过场景模板自动生成。可以是 text/keyword/integer/float 等类型，可任意命名（不能以 sys_ 开头）。</p>
+                        <p data-i18n-html="help.fields_custom_example">例如 memory 场景模板包含 <code>query</code>（问题）、<code>answer</code>（答案）、<code>experience</code>（经验）三个自定义字段。</p>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.retrieval_modes_title">检索模式</h4>
+                        <p data-i18n="help.retrieval_modes_intro">创建检索接口时，可以为每个字段选择检索方式：</p>
+                        <ul>
+                            <li data-i18n-html="help.retrieval_mode_exact"><code>exact</code>（精确匹配）：字段值完全相等才命中，适用于状态、ID等分类字段</li>
+                            <li data-i18n-html="help.retrieval_mode_in"><code>in</code>（IN匹配）：字段值在给定列表中命中，适用于多选过滤</li>
+                            <li data-i18n-html="help.retrieval_mode_fuzzy"><code>fuzzy</code>（模糊匹配）：全文关键词匹配，适用于文本内容检索</li>
+                            <li data-i18n-html="help.retrieval_mode_vector"><code>vector</code>（向量检索）：将查询文本 embedding 后，与该字段的向量做相似度排序</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.vector_rules_title">向量检索规则</h4>
+                        <ul>
+                            <li data-i18n-html="help.vector_rules_1"><strong>可做向量检索的字段</strong>：<code>sys_chunk</code>（唯一支持的系统字段）+ 所有用户自定义字段。其他 sys_* 字段（如 sys_status）不能设为 vector 模式。</li>
+                            <li data-i18n-html="help.vector_rules_2"><strong>存储位置</strong>：向量字段会在 Vearch 向量数据库中生成一列 <code>{field}_vector</code>（如 experience → experience_vector），并调用 embedding 模型生成向量。</li>
+                            <li data-i18n-html="help.vector_rules_3"><strong>多字段联合向量检索</strong>：一个检索接口可以配置多个字段为 vector 模式，系统会对每个字段的向量距离求和排序（Vearch 原生多向量检索）。</li>
+                            <li data-i18n-html="help.vector_rules_4"><strong>过滤字段同步</strong>：接口中作为 exact/in/fuzzy 使用的字段（含 sys_* 字段）会一并存入 Vearch space，供向量检索时做原生过滤。</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.storage_flow_title">数据存储流程</h4>
+                        <p data-i18n-html="help.storage_flow_intro">Bank 内部同时使用 Elasticsearch 和 Vearch 两套存储：</p>
+                        <ul>
+                            <li data-i18n-html="help.storage_flow_es"><strong>Elasticsearch</strong>：完整的样本数据（所有字段），用于结构化查询和列表展示，也是数据的"权威副本"</li>
+                            <li data-i18n-html="help.storage_flow_vearch"><strong>Vearch</strong>：仅存放向量列 + 过滤字段的精简副本，专为向量相似度检索优化</li>
+                            <li data-i18n-html="help.storage_flow_deposit"><strong>Deposit 时</strong>：样本先写入 ES；若样本至少一个向量字段有内容，会生成 embedding 并写入 Vearch。若所有向量字段都为空，则暂不写入 Vearch。</li>
+                            <li data-i18n-html="help.storage_flow_update"><strong>修改样本时</strong>：更新 ES 后自动同步 Vearch —— 若 Vearch 中已存在该样本，做增量更新（含 re-embed 变更的向量字段）；若不存在但更新后向量字段有值了，则 upsert 一条完整的 Vearch doc。</li>
+                            <li data-i18n-html="help.storage_flow_agent"><strong>Agent 场景</strong>：常见用法是 deposit 时向量字段为空，等 Agent 触发后再写入内容。此时 Agent 通过 sample update API 修改数据，系统会自动完成 Vearch 的 upsert（生成向量、写入 Vearch）。</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-subsection">
+                        <h4 data-i18n="help.rebuild_title">Vearch 索引重建</h4>
+                        <p data-i18n-html="help.rebuild_desc">当 Bank 的检索接口或字段发生结构性变化，导致 Vearch space schema 与 ES 数据不匹配时，可以通过 <code>POST /api/banks/{bank_name}/rebuild-vearch</code> 接口重建 Vearch 索引：删除旧 space、按当前 retrieval APIs 创建新 space、扫描 ES 中所有样本重新生成 embedding 并批量写入。</p>
+                        <p data-i18n="help.rebuild_when">典型使用场景：数据在 ES 里存在但检索接口返回 0 条时；或修改了 Bank 的检索接口配置后。前端设计上，Bank 创建后一般不允许修改检索接口，以避免这种不一致。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bank Management -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">📦</span><span data-i18n="help.banks_title">Bank管理</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.banks_text">管理所有数据Bank的入口。支持创建、查看、删除Bank。创建Bank时可以选择：</p>
+                    <ul>
+                        <li data-i18n-html="help.banks_scene"><strong>场景模板</strong>：提供QA问答、Memory记忆、客服FAQ、知识库、产品目录等预设模板，快速创建带标准Schema的Bank。</li>
+                        <li data-i18n-html="help.banks_custom"><strong>自定义Schema</strong>：手动添加字段定义，或上传CSV/XLSX文件自动解析表头为字段。</li>
+                    </ul>
+                    <p data-i18n-html="help.banks_retrieval">创建Bank时还可以配置检索接口，定义检索条件（精确匹配、模糊检索、IN匹配、向量检索）和输出字段。</p>
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">📂</span><span data-i18n="help.data_title">数据管理</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.data_text">管理Bank中的文档和样本数据。支持两种数据导入方式：</p>
+                    <ul>
+                        <li data-i18n-html="help.data_upload"><strong>文件上传</strong>：支持 DOCX、PDF、TXT、Markdown、CSV、XLSX 格式。文本类文件会自动切分为多个chunk并生成向量；表格文件每行作为一条样本。</li>
+                        <li data-i18n-html="help.data_api"><strong>API存储</strong>：通过 JSON 接口批量导入数据，适合程序化数据导入场景。</li>
+                    </ul>
+                    <p data-i18n="help.data_sample">样本列表支持按状态筛选、查看详情、编辑字段、查看修改历史等操作。</p>
+                </div>
+            </div>
+
+            <!-- Annotation Workbench -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">✏️</span><span data-i18n="help.annotation_title">标注工作台</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.annotation_text">标注人员的核心工作界面，采用左右分栏布局：</p>
+                    <ul>
+                        <li data-i18n-html="help.annotation_list"><strong>左侧</strong>：样本列表，支持按状态筛选，显示进度统计。</li>
+                        <li data-i18n-html="help.annotation_detail"><strong>右侧</strong>：样本详情与标注表单。根据绑定的标注模板，动态渲染可编辑字段（支持文本输入、单选、下拉选择等控件）。</li>
+                    </ul>
+                    <p data-i18n="help.annotation_workflow">标注流程：选择样本 → 填写/修改字段 → 点击「保存」推进状态，或点击「驳回」退回上一状态。</p>
+                </div>
+            </div>
+
+            <!-- Annotation Agents -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">🤖</span><span data-i18n="help.agents_title">标注Agent</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.agents_text">配置自动化标注Agent。Agent是外部AI/服务，当样本状态发生变化时自动被调用。</p>
+                    <ul>
+                        <li data-i18n-html="help.agents_config"><strong>配置项</strong>：Agent名称、服务URL、触发状态（当样本变为该状态时触发）、启用/禁用开关。</li>
+                        <li data-i18n-html="help.agents_flow"><strong>状态流转图</strong>：可视化展示所有Agent组成的状态流转链路，直观了解自动化处理流程。</li>
+                        <li data-i18n-html="help.agents_logs"><strong>执行日志</strong>：记录每次Agent调用的输入状态、输出状态、耗时、成功/失败等信息。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- API Test -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">🔌</span><span data-i18n="help.retrieval_title">API Test</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.retrieval_text">Bank的API文档与在线测试工具。展示当前Bank的所有接口：</p>
+                    <ul>
+                        <li data-i18n-html="help.retrieval_deposit"><strong>存储接口</strong>：支持单条存储和批量存储，提供curl和Python示例代码。</li>
+                        <li data-i18n-html="help.retrieval_withdraw"><strong>检索接口</strong>：支持默认检索（全字段精确匹配）和自定义检索接口，可在线发送请求测试。</li>
+                        <li data-i18n-html="help.retrieval_tools"><strong>工具发现</strong>：获取Bank的标准化工具描述（JSON Schema格式），可直接用于LLM/Agent的工具调用集成。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Annotation Templates -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">📋</span><span data-i18n="help.templates_title">标注模板</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.templates_text">管理标注工作台使用的表单模板。模板定义了哪些字段可编辑及其编辑方式。</p>
+                    <ul>
+                        <li data-i18n-html="help.templates_create"><strong>手动创建</strong>：选择可编辑字段，配置字段约束（单选/下拉/文本框）、选项值、条件显示规则等。</li>
+                        <li data-i18n-html="help.templates_ai"><strong>AI生成</strong>：通过对话描述需求，AI助手自动生成模板JSON配置。支持多轮对话迭代优化。</li>
+                    </ul>
+                    <p data-i18n="help.templates_test">创建后可使用测试功能，输入样本数据预览模板的渲染效果。</p>
+                    <p data-i18n-html="help.templates_global"><strong>模板是全局共享的</strong>：系统内置模板与用户创建的模板一起放在同一个全局池，任何 Bank 都可以使用池中任意模板。</p>
+                    <p data-i18n-html="help.templates_linkage"><strong>样本与模板的关联</strong>：每条样本通过 <code>sys_template</code> 字段绑定一个模板。该字段接受两种值 —— 模板 UUID 或模板名字（推荐后者，更直观）。标注页面会根据样本的 <code>sys_template</code> 自动加载对应模板；Deposit / Agent 修改样本时，直接写入模板名字即可（模板名字全局唯一）。</p>
+                </div>
+            </div>
+
+            <!-- User Management -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">👥</span><span data-i18n="help.users_title">用户管理</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.users_text">管理系统用户（仅管理员可见）。支持创建、编辑、删除用户。</p>
+                    <p data-i18n-html="help.users_roles">系统有两种角色：<strong>admin</strong>（管理员）拥有所有权限；<strong>annotator</strong>（标注员）仅能访问标注工作台。</p>
+                </div>
+            </div>
+
+            <!-- System Settings -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">⚙️</span><span data-i18n="help.config_title">系统设置</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <p data-i18n="help.config_text">配置系统运行参数（仅管理员可见）：</p>
+                    <ul>
+                        <li data-i18n-html="help.config_annotation"><strong>标注设置</strong>：最大并发数（同时处理的Agent调用数）、Agent超时时间。</li>
+                        <li data-i18n-html="help.config_embedding"><strong>Embedding设置</strong>：Triton推理服务器URL，或OpenAI兼容API的地址和模型。</li>
+                        <li data-i18n-html="help.config_chunking"><strong>文档切分设置</strong>：文本切分的块大小和重叠大小（tokens）。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- FAQ -->
+            <div class="help-section">
+                <div class="help-section-header" onclick="toggleSection(this)">
+                    <h3><span class="section-icon">❓</span><span data-i18n="help.faq_title">常见问题</span></h3>
+                    <svg class="help-section-toggle" viewBox="0 0 20 20" fill="currentColor"><path d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"/></svg>
+                </div>
+                <div class="help-section-body">
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q1">如何重置管理员密码？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a1">系统首次启动时会自动创建默认管理员账号（admin / admin）。您可以在「用户管理」页面修改任何用户的密码。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q2">支持哪些文件格式？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a2">支持 DOCX、PDF、TXT、Markdown (.md)、CSV、XLSX 格式。文本类文件会自动切分并生成向量embedding。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q3">如何对接外部AI服务作为标注Agent？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a3">Agent需要提供一个HTTP POST接口，接收包含样本数据的JSON请求，返回修改后的字段值和新状态。在「标注Agent」页面配置Agent的服务URL和触发状态即可。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q4">标注员能看到哪些页面？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a4">标注员（annotator角色）仅能访问「标注工作台」页面，其他管理功能对标注员不可见。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q5">如何将Bank集成到LLM应用中？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a5">在「API Test」页面使用「工具发现」功能，获取Bank的标准化工具描述（包含inputSchema），将其作为工具传给LLM即可实现工具调用集成。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q6">为什么我 deposit 了数据但向量检索返回 0 条？</span></div>
+                        <div class="faq-a" data-i18n-html="help.faq_a6">如果 deposit 时向量字段（如 experience）是空的，系统会跳过 Vearch 写入（Vearch 要求向量字段非空）。等标注 Agent 或人工填写向量字段后，系统会自动补充 Vearch 记录。如果长时间未同步，可以调用「重建 Vearch 索引」接口手动修复。</div>
+                    </div>
+                    <div class="faq-item">
+                        <div class="faq-q"><span data-i18n="help.faq_q7">一个检索接口可以配置多少个向量字段？</span></div>
+                        <div class="faq-a" data-i18n="help.faq_a7">无限制。多个向量字段会被联合检索：每个字段各自做相似度计算，最终按各字段距离之和排序返回。</div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script>
+        function toggleSection(header) {
+            $(header).closest('.help-section').toggleClass('open');
+        }
+
+        $(function () {
+            OxyBank.initSidebar('help');
+
+            function applyHtmlI18n() {
+                $('[data-i18n-html]').each(function () {
+                    var key = $(this).attr('data-i18n-html');
+                    $(this).html(i18n.t(key));
+                });
+            }
+            applyHtmlI18n();
+            $(document).on('oxybank:lang-change', applyHtmlI18n);
+        });
+    </script>
+</body>
+</html>

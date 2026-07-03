@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OxyBank - API Test</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .api-card { background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden; }
+        .api-card-header { display:flex;justify-content:space-between;align-items:center;padding:14px 20px;cursor:pointer;border-bottom:1px solid var(--gray-100); }
+        .api-card-header:hover { background:var(--gray-50); }
+        .api-card-header h3 { font-size:15px;margin:0; }
+        .api-method { display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;font-family:monospace;margin-right:8px; }
+        .api-method.post { background:#dbeafe;color:#1d4ed8; }
+        .api-method.get { background:#d1fae5;color:#059669; }
+        .api-card-body { padding:0 20px 16px;display:none; }
+        .api-card-body.open { display:block; }
+        .api-section { margin-top:12px; }
+        .api-section-title { font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;margin-bottom:6px; }
+        .code-block { background:var(--gray-800);color:#e5e7eb;border-radius:6px;padding:12px 16px;font-size:12px;font-family:'Menlo','Consolas',monospace;white-space:pre-wrap;word-break:break-all;position:relative;line-height:1.6;overflow-x:auto; }
+        .code-block .copy-btn { position:absolute;top:6px;right:6px;background:rgba(255,255,255,.15);border:none;color:#9ca3af;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px; }
+        .code-block .copy-btn:hover { background:rgba(255,255,255,.25);color:#fff; }
+        .param-table { width:100%;font-size:13px;border-collapse:collapse; }
+        .param-table th { text-align:left;padding:4px 8px;color:var(--gray-500);font-weight:600;border-bottom:1px solid var(--gray-200); }
+        .param-table td { padding:4px 8px;border-bottom:1px solid var(--gray-100); }
+        .param-table .required { color:var(--danger);font-weight:600; }
+        .test-panel { background:var(--gray-50);border-radius:8px;padding:16px;margin-top:12px; }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="app-sidebar"></aside>
+        <main class="app-main">
+            <div class="page-header">
+                <h1 data-i18n="nav.retrieval">API Test</h1>
+            </div>
+            <div id="apiCards"></div>
+        </main>
+    </div>
+
+    <script src="js/lib/jquery.min.js"></script>
+    <script src="js/i18n.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/common.js"></script>
+    <script src="js/retrieval.js"></script>
+    <script>
+        $(function() { OxyBank.initSidebar('retrieval'); });
+    </script>
+</body>
+</html>

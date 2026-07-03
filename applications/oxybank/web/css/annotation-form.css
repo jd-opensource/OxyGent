@@ -1,0 +1,81 @@
+/*
+ * annotation-form.css — shared styles for the annotation form UI.
+ *
+ * Two pages render the same form-with-sections pattern:
+ *   - annotation.html   (real annotation workbench, class prefix .qa-*)
+ *   - templates.html    (template preview panel,    class prefix .pv-*)
+ *
+ * Keeping these rules in one file guarantees the preview matches the real
+ * workbench pixel-for-pixel. If you add or tweak a rule, both prefixes get it.
+ *
+ * When adding a new form element, define it under both selectors so either
+ * page can adopt it — do NOT split rules by page.
+ */
+
+.qa-section,
+.pv-section {
+    margin-bottom: 16px;
+}
+
+.qa-section-title,
+.pv-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.qa-readonly,
+.pv-readonly {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-bottom: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.qa-radio-group,
+.pv-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.qa-radio-group label,
+.pv-radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 6px 12px;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.qa-radio-group label:hover,
+.pv-radio-group label:hover {
+    border-color: var(--gray-300);
+}
+
+.qa-radio-group input:checked + span,
+.pv-radio-group input:checked + span {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.qa-radio-group label:has(input:checked),
+.pv-radio-group label:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
