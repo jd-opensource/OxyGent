@@ -60,32 +60,6 @@ pip install -r requirements.txt
 
 `config.json` is keyed by **environment**. On startup the loader applies the `default` section as a baseline, then deep-merges the section named by the `OXYBANK_ENV` environment variable on top. Fields not listed in the environment section inherit from `default`.
 
-```json
-{
-  "default": {
-    "es":     { "index_prefix": "oxybank" },
-    "vearch": { "db_name": "oxybank_db_base" },
-    "triton": { "url": "http://.../v2/models/embedding/infer" },
-    "openai": { "api_key": "sk-...", "base_url": "https://api.openai.com/v1", "model": "text-embedding-3-small" },
-    "llm":    { "api_key": "EMPTY", "base_url": "http://.../v1/chat/completions", "model": "qwen25-32b-native" },
-    "annotation": { "max_concurrency": 5, "agent_timeout": 120 },
-    "chunking":   { "chunk_size": 512, "chunk_overlap": 50 },
-    "server": { "host": "0.0.0.0", "port": 8080 },
-    "auth":   { "secret_key": "change-me", "enabled": false }
-  },
-  "development": {
-    "es":     { "hosts": ["dev-es:9200"], "user": "dev", "password": "..." },
-    "vearch": { "master_url": "http://dev-vearch-master", "router_url": "http://dev-vearch-router" },
-    "auth":   { "enabled": false }
-  },
-  "production": {
-    "es":     { "hosts": ["prod-es:9200"], "user": "prod", "password": "..." },
-    "vearch": { "master_url": "http://prod-vearch-master", "router_url": "http://prod-vearch-router" },
-    "auth":   { "secret_key": "<strong-random-string>", "enabled": true }
-  }
-}
-```
-
 **Which environment gets loaded** is decided by the `OXYBANK_ENV` env var (default: `development`). Merging is deep — `production.es` overrides only the fields listed there, `index_prefix` and `timeout` still come from `default.es`. An unknown env value simply falls back to `default`.
 
 - `auth.enabled: false` — everyone hits the API as an anonymous admin. Fine for local dev; **flip to true in production** and change `secret_key`.

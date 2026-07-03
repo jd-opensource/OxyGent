@@ -60,32 +60,6 @@ pip install -r requirements.txt
 
 `config.json` **按环境分层**。启动时 loader 先套 `default` 段作为公共默认值，再用当前环境的同名段做**深度合并**覆盖。当前环境由环境变量 `OXYBANK_ENV` 决定（默认 `development`）。环境段里没写的字段自动继承 `default` 里的值。
 
-```json
-{
-  "default": {
-    "es":     { "index_prefix": "oxybank" },
-    "vearch": { "db_name": "oxybank_db_base" },
-    "triton": { "url": "http://.../v2/models/embedding/infer" },
-    "openai": { "api_key": "sk-...", "base_url": "https://api.openai.com/v1", "model": "text-embedding-3-small" },
-    "llm":    { "api_key": "EMPTY", "base_url": "http://.../v1/chat/completions", "model": "qwen25-32b-native" },
-    "annotation": { "max_concurrency": 5, "agent_timeout": 120 },
-    "chunking":   { "chunk_size": 512, "chunk_overlap": 50 },
-    "server": { "host": "0.0.0.0", "port": 8080 },
-    "auth":   { "secret_key": "change-me", "enabled": false }
-  },
-  "development": {
-    "es":     { "hosts": ["dev-es:9200"], "user": "dev", "password": "..." },
-    "vearch": { "master_url": "http://dev-vearch-master", "router_url": "http://dev-vearch-router" },
-    "auth":   { "enabled": false }
-  },
-  "production": {
-    "es":     { "hosts": ["prod-es:9200"], "user": "prod", "password": "..." },
-    "vearch": { "master_url": "http://prod-vearch-master", "router_url": "http://prod-vearch-router" },
-    "auth":   { "secret_key": "<强随机字符串>", "enabled": true }
-  }
-}
-```
-
 **合并规则**是**深度合并**：`production.es` 只覆盖它列出的字段（比如 `hosts / user / password`），`index_prefix / timeout` 仍然从 `default.es` 继承。设了个未知环境值时会回退到只用 `default`。
 
 - `auth.enabled: false` —— 所有请求都以匿名管理员身份进入。本地开发方便，**生产环境务必改成 true 并换掉 `secret_key`**。
