@@ -87,6 +87,10 @@ class Oxy(BaseModel, ABC):
     """
 
     name: str = Field(..., description="Identifier for the agent.")
+    alias: Optional[str] = Field(
+        None,
+        description="Human-friendly display name shown in the web UI; falls back to name.",
+    )
     desc: str = Field("", description="Description of the agent's functionality.")
     category: str = Field("tool", description="Category classification")
     class_name: Optional[str] = Field(None, description="Class name")

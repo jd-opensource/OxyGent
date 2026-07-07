@@ -767,6 +767,7 @@ class MAS(BaseModel):
                 agent_organization.append(
                     {
                         "name": agent_name,
+                        "alias": agent.alias or agent_name,
                         "type": agent.category,
                     }
                 )

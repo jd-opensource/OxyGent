@@ -1121,8 +1121,8 @@
                     : `<img src='${typeMap[data.type]}' />`
                 }
                         </span>
-                        <span class='item-template-text'>
-                            ${data.name}
+                        <span class='item-template-text' title='${data.name}'>
+                            ${data.alias || data.name}
                         </span>
                         ${data?.children?.length
                     ? '<div class="expandIcon">-</div>'
