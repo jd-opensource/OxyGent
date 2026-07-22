@@ -1,6 +1,8 @@
 """Python code execution tools for OxyGent agents."""
 
 import logging
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 from typing import Optional
 
 from oxygent.oxy import FunctionHub
@@ -18,21 +20,33 @@ def run_python_code(
 ) -> str:
     try:
         logger.debug(f"Running code:\n\n{code}\n\n")
-        if not safe_globals:
+        if safe_globals is None:
             safe_globals = globals()
-        if not safe_locals:
-            safe_locals = locals()
+        if safe_locals is None:
+            safe_locals = {}
 
-        exec(code, safe_globals, safe_locals)
+        stdout = StringIO()
+        stderr = StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            exec(code, safe_globals, safe_locals)
+
+        result_parts = []
+        stdout_output = stdout.getvalue().rstrip()
+        stderr_output = stderr.getvalue().rstrip()
+        if stdout_output:
+            result_parts.append(stdout_output)
+        if stderr_output:
+            result_parts.append(f"[stderr] {stderr_output}")
 
         if variable_to_return:
             variable_value = safe_locals.get(variable_to_return)
             if variable_value is None:
-                return f"Variable {variable_to_return} not found"
+                result_parts.append(f"Variable {variable_to_return} not found")
+                return "\n".join(result_parts)
             logger.debug(f"Variable {variable_to_return} value: {variable_value}")
-            return str(variable_value)
-        else:
-            return "successfully run python code"
+            result_parts.append(str(variable_value))
+
+        return "\n".join(result_parts) or "successfully run python code"
     except Exception as e:
         logger.error(
             f"Error in run_python_code (variable_to_return={variable_to_return!r}): {e}",
