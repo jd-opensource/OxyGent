@@ -473,7 +473,6 @@ async def browser_auto_login(
                                     "title": await page.title(),
                                     "domain": current_domain,
                                     "login_username": login_username,
-                                    "login_password": login_password,
                                     "two_factor_auth": True,
                                     "two_factor_auth_status": auth_status,
                                     "screenshot_path": auth_result.get(
@@ -510,7 +509,6 @@ async def browser_auto_login(
                                     "title": await page.title(),
                                     "domain": current_domain,
                                     "login_username": login_username,
-                                    "login_password": login_password,
                                     "login_screenshot_path": login_screenshot_path,
                                 }
             except Exception as e:
