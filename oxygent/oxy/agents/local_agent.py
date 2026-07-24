@@ -180,16 +180,25 @@ class LocalAgent(BaseAgent):
                 logger.warning(f"Unknown bank type: {type(oxy)}")
 
     def __deepcopy__(self, memo: dict[int, Any]) -> "LocalAgent":
-        """Deep copy this agent, preserving non-copyable async primitives."""
-        # Extract all fields from the current instance
-        fields = self.model_dump()
+        """Deep copy this agent, preserving non-copyable async primitives.
 
+        Re-injects any field declared with ``exclude=True`` (e.g. callables) that
+        ``model_dump()`` omits, so subclasses with excluded required fields copy
+        correctly without overriding this method.
+        """
+        fields = self.model_dump()
+        # Re-inject exclude=True fields that model_dump() drops
+        for name, info in type(self).model_fields.items():
+            if info.exclude:
+                fields[name] = getattr(self, name)
         # Keep MAS reference shared (not deep copied) to maintain system connectivity
         fields["mas"] = self.mas
 
         # Deep copy all other fields to ensure complete isolation
         for k in fields:
-            if k not in ["mas"]:
+            if k not in ("mas",) and not (
+                k in type(self).model_fields and type(self).model_fields[k].exclude
+            ):
                 fields[k] = copy.deepcopy(fields[k], memo)
         return self.__class__(**fields)
 

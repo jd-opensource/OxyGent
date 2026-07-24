@@ -246,8 +246,8 @@ class TokenEstimator:
         encoder = cls.get_encoder(model_name)
         if encoder is not None:
             return len(encoder.encode(text))
-        # Fallback: ~4 characters per token
-        return len(text) // 4
+        # Fallback: ~4 characters per token, minimum 1 to avoid zero separator cost
+        return max(1, len(text) // 4)
 
     @classmethod
     def estimate_messages_tokens(
@@ -298,3 +298,144 @@ class TokenEstimator:
                 else EstimationMethod.APPROXIMATE
             ),
         )
+
+
+# ---------------------------------------------------------------------------
+# RAG knowledge context management
+# ---------------------------------------------------------------------------
+
+
+class KnowledgeTruncator:
+    """Truncate and split retrieved knowledge to fit within a token budget.
+
+    Typical flow:
+    1. Call ``fits(text, budget)`` to check whether the knowledge fits as-is.
+    2. If not, call ``truncate(text, budget)`` (simple tail-cut) or
+       ``split_to_chunks(text, budget)`` (chunk list for map-reduce style use).
+    """
+
+    @classmethod
+    def fits(cls, text: str, token_budget: int, model_name: str = "default") -> bool:
+        """Return True if *text* fits within *token_budget* tokens."""
+        return TokenEstimator.count_tokens(text, model_name) <= token_budget
+
+    @classmethod
+    def truncate(
+        cls,
+        text: str,
+        token_budget: int,
+        model_name: str = "default",
+    ) -> tuple[str, bool]:
+        """Truncate *text* to fit within *token_budget* tokens.
+
+        Returns:
+            (truncated_text, was_truncated): The (possibly shortened) text and
+            a flag indicating whether any content was dropped.
+
+        Strategy: binary-search on character index to find the largest prefix
+        that fits, then snap to the nearest paragraph/sentence boundary.
+        Falls back to a hard character cut when no boundary is found.
+        """
+        if not text:
+            return text, False
+
+        if cls.fits(text, token_budget, model_name):
+            return text, False
+
+        # Binary search on character position for the largest fitting prefix.
+        lo, hi = 0, len(text)
+        while lo < hi - 1:
+            mid = (lo + hi) // 2
+            if TokenEstimator.count_tokens(text[:mid], model_name) <= token_budget:
+                lo = mid
+            else:
+                hi = mid
+
+        # Snap to nearest paragraph or sentence boundary to avoid mid-word cuts.
+        candidate = text[:lo]
+        for sep in ("\n\n", "\n", ". ", "。", " "):
+            idx = candidate.rfind(sep)
+            if idx > lo // 2:  # don't snap back more than half the content
+                candidate = candidate[: idx + len(sep)].rstrip()
+                break
+
+        truncated = candidate or text[:lo]
+        return truncated, True
+
+    @classmethod
+    def split_to_chunks(
+        cls,
+        text: str,
+        chunk_token_size: int,
+        model_name: str = "default",
+        separator: str = "\n\n",
+    ) -> list[str]:
+        """Split *text* into a list of chunks each fitting within *chunk_token_size*.
+
+        Splits on *separator* first; if a single paragraph exceeds the budget
+        it is further split on whitespace, then hard-cut as a last resort.
+
+        Returns:
+            List of non-empty string chunks.
+        """
+        if not text:
+            return []
+
+        if chunk_token_size <= 0:
+            raise ValueError(f"chunk_token_size must be > 0, got {chunk_token_size}")
+
+        if not separator:
+            raise ValueError("separator must be a non-empty string")
+
+        paragraphs = text.split(separator)
+        chunks: list[str] = []
+        current_parts: list[str] = []
+        current_tokens = 0
+        sep_tokens = TokenEstimator.count_tokens(separator, model_name)
+
+        for para in paragraphs:
+            if not para.strip():
+                continue
+
+            para_tokens = TokenEstimator.count_tokens(para, model_name)
+
+            if para_tokens > chunk_token_size:
+                # Para itself is oversized — flush current buffer first
+                if current_parts:
+                    chunks.append(separator.join(current_parts))
+                    current_parts, current_tokens = [], 0
+                # Hard-cut the oversized para into token-sized pieces
+                chunks.extend(
+                    cls._hard_cut(para, chunk_token_size, model_name)
+                )
+                continue
+
+            # Account for the separator that join() will insert between parts.
+            join_cost = sep_tokens if current_parts else 0
+            if current_tokens + join_cost + para_tokens > chunk_token_size and current_parts:
+                chunks.append(separator.join(current_parts))
+                current_parts, current_tokens = [], 0
+
+            current_parts.append(para)
+            current_tokens += (sep_tokens if len(current_parts) > 1 else 0) + para_tokens
+
+        if current_parts:
+            chunks.append(separator.join(current_parts))
+
+        return chunks
+
+    @classmethod
+    def _hard_cut(
+        cls, text: str, token_budget: int, model_name: str
+    ) -> list[str]:
+        """Cut *text* into pieces of at most *token_budget* tokens each."""
+        pieces: list[str] = []
+        remaining = text
+        while remaining:
+            piece, _ = cls.truncate(remaining, token_budget, model_name)
+            if not piece:
+                # Safety: avoid infinite loop if truncate returns empty
+                piece = remaining[: max(1, len(remaining) // 2)]
+            pieces.append(piece)
+            remaining = remaining[len(piece):]
+        return pieces
