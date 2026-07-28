@@ -12,6 +12,8 @@ import httpx
 
 from ...schemas import OxyRequest, OxyResponse, OxyState
 from .remote_llm import RemoteLLM
+from pydantic import Field
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,26 @@ class HttpLLM(RemoteLLM):
     with remote LLM APIs over HTTP. It handles API authentication, request
     formatting, and response parsing for OpenAI-compatible APIs.
     """
+    llm_request_modifier: Callable = Field(
+        lambda url, headers, payload: (url, headers, payload), exclude=True, description="Modifier function to modify request params before sending."
+    )
+    
+    def _before_request_hook(self, url: str, headers: dict, payload: dict) -> tuple[str, dict, dict]:
+        """Hook function to modify request URL, headers, and payload before sending.
+        
+        This method can be overridden by subclasses or set dynamically to modify
+        the request parameters before sending to the LLM API.
+        
+        Args:
+            url: The request URL
+            headers: The request headers
+            payload: The request payload
+        
+        Returns:
+            Tuple of (modified_url, modified_headers, modified_payload)
+        """
+        url, headers, payload = self.llm_request_modifier(url, headers, payload)
+        return url, headers, payload
 
     async def _execute(self, oxy_request: OxyRequest) -> OxyResponse:
         """Execute an HTTP request to the remote LLM API.
@@ -89,6 +111,9 @@ class HttpLLM(RemoteLLM):
             result_parts: list[str] = []
             usage_data = None
             async with httpx.AsyncClient(timeout=None) as client:
+                # Apply before request hook
+                url, headers, payload = self._before_request_hook(url, headers, payload)
+                
                 async with client.stream(
                     "POST", url, headers=headers, json=payload
                 ) as resp:
@@ -168,6 +193,9 @@ class HttpLLM(RemoteLLM):
             )
 
         async with httpx.AsyncClient(timeout=self.timeout) as client:
+            # Apply before request hook
+            url, headers, payload = self._before_request_hook(url, headers, payload)
+            
             http_response = await client.post(url, headers=headers, json=payload)
             http_response.raise_for_status()
             data = http_response.json()
