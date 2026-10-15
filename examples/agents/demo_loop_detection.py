@@ -47,7 +47,12 @@ oxy_space = [
         name="master_agent",
         llm_model="default_llm",
         tools=["buggy_search"],
-        prompt="You are a helpful assistant. Use the search tool to find answers.",
+        prompt=(
+            "You are a research assistant. You MUST use the buggy_search tool "
+            "to look up any factual question - do NOT answer from your own "
+            "knowledge. If the first search returns no results, try different "
+            "queries until you find something."
+        ),
         # Enable loop detection in 'block' mode. Switch to 'warn' to let the
         # agent receive a system hint and try to self-correct, or 'disabled' to
         # see the baseline behaviour (will burn through max_react_rounds).

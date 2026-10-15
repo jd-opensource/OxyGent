@@ -87,16 +87,15 @@ class ReActAgent(LocalAgent):
     loop_detection_mode: str = Field(
         "disabled",
         description=(
-            "Tool-call loop detection mode. One of: 'disabled', 'warn', 'block', "
-            "'fallback'. 'warn' logs a warning; 'block' stops the ReAct loop and "
-            "returns loop_fallback_message; 'fallback' is identical to 'block' "
-            "but can be customised via loop_fallback_message."
+            "Tool-call loop detection mode. One of: 'disabled', 'warn', 'block'. "
+            "'warn' logs a warning and injects a system hint; 'block' stops the "
+            "ReAct loop and returns loop_fallback_message."
         ),
     )
     loop_fallback_message: str = Field(
         "A tool-call loop was detected and execution was stopped. "
         "Please rephrase your question or try again.",
-        description="Message returned to the caller when loop_detection_mode is 'block' or 'fallback'.",
+        description="Message returned to the caller when loop_detection_mode is 'block'.",
     )
 
     func_parse_llm_response: Optional[Callable[[str, OxyRequest], LLMResponse]] = Field(
@@ -461,7 +460,7 @@ class ReActAgent(LocalAgent):
                                 "node_id": oxy_request.node_id,
                             },
                         )
-                        if self.loop_detection_mode in ("block", "fallback"):
+                        if self.loop_detection_mode == "block":
                             return OxyResponse(
                                 state=OxyState.COMPLETED,
                                 output=self.loop_fallback_message,
