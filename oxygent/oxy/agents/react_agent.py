@@ -27,6 +27,7 @@ from ...schemas import (
     OxyState,
 )
 from ...utils.common_utils import chunk_list, extract_first_json, generate_uuid
+from ...utils.loop_detector import build_loop_break_prompt, detect_loop
 from ..base_oxy import ensure_async
 from .local_agent import LocalAgent
 
@@ -82,6 +83,20 @@ class ReActAgent(LocalAgent):
     weight_react_memory: int = Field(1, description="Weight for react_memory")
 
     trust_mode: bool = Field(False, description="Enable trust mode for direct results")
+
+    loop_detection_mode: str = Field(
+        "disabled",
+        description=(
+            "Tool-call loop detection mode. One of: 'disabled', 'warn', 'block'. "
+            "'warn' logs a warning and injects a system hint; 'block' stops the "
+            "ReAct loop and returns loop_fallback_message."
+        ),
+    )
+    loop_fallback_message: str = Field(
+        "A tool-call loop was detected and execution was stopped. "
+        "Please rephrase your question or try again.",
+        description="Message returned to the caller when loop_detection_mode is 'block'.",
+    )
 
     func_parse_llm_response: Optional[Callable[[str, OxyRequest], LLMResponse]] = Field(
         None, exclude=True, description="Function to parse LLM output"
@@ -427,6 +442,37 @@ class ReActAgent(LocalAgent):
                     Message.assistant_message(llm_response.ori_response)
                 )
                 react_memory.add_message(Message.user_message(observation.to_str()))
+
+                # Loop detection: observe this round's tool calls / results and
+                # react to repeated / cyclical patterns according to mode.
+                if self.loop_detection_mode != "disabled":
+                    loop_info = detect_loop(
+                        oxy_request.shared_data,
+                        tool_call_dict_list,
+                        [r.output for r in oxy_responses],
+                        current_round,
+                    )
+                    if loop_info is not None:
+                        logger.warning(
+                            f"Loop detected: {loop_info}",
+                            extra={
+                                "trace_id": oxy_request.current_trace_id,
+                                "node_id": oxy_request.node_id,
+                            },
+                        )
+                        if self.loop_detection_mode == "block":
+                            return OxyResponse(
+                                state=OxyState.COMPLETED,
+                                output=self.loop_fallback_message,
+                                extra={
+                                    "react_memory": react_memory.to_dict_list(),
+                                    "loop_detected": loop_info,
+                                },
+                            )
+                        # 'warn' mode: inject a system hint and keep going
+                        react_memory.add_message(
+                            Message.user_message(build_loop_break_prompt(loop_info))
+                        )
             else:
                 # Parsing error - add to memory for correction
                 logger.info(
